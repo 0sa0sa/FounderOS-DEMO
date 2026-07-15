@@ -1,0 +1,14 @@
+node_modules/
+.next/
+.next-fast/
+data/*.db
+data/*.db-*
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+.worktrees/
+
+# Secrets — never commit real credentials. Only .env.example is tracked.
+.env
+.env.local
+.env.*.local
