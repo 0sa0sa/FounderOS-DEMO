@@ -69,10 +69,10 @@ describe('mergeSeriesSum (carry-forward aggregation)', () => {
   });
 
   test('the latest merged value equals the sum of each channel’s latest', () => {
-    const a = [pt('2026-05-01', 7215), pt('2026-06-12', 14350)];
+    const a = [pt('2026-05-01', 40000), pt('2026-06-12', 42000)];
     const b = [pt('2026-06-12', 30000)];
     const merged = mergeSeriesSum([a, b]);
-    expect(merged.at(-1)).toEqual({ capturedAt: '2026-06-12', value: 44350 });
+    expect(merged.at(-1)).toEqual({ capturedAt: '2026-06-12', value: 72000 });
   });
 
   test('handles empty input', () => {

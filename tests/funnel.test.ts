@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { openDb, type FounderDb } from '@/lib/db';
 import { seedDatabase } from '@/lib/seed';
 import {
+  attentionQueue,
   funnelSummary,
   funnelSpaceModel,
   journeyMeta,
@@ -11,6 +12,7 @@ import {
   DECAY_DAYS,
   FUNNEL_STAGES,
 } from '@/lib/funnel';
+import { orbitSpread } from '@/lib/funnel-viz';
 import {
   FunnelJourneySchema,
   FunnelSummarySchema,
@@ -37,6 +39,10 @@ const contact = (over: Partial<FunnelContact> = {}): FunnelContact => ({
   url: null,
   email: null,
   phone: null,
+  person: null,
+  company: null,
+  role: null,
+  linkedin: null,
   createdAt: '2026-06-01',
   ...over,
 });
@@ -68,6 +74,24 @@ describe('funnel repo', () => {
     expect(journeys).toHaveLength(1);
     expect(journeys[0].touches.map((t) => t.seq)).toEqual([1, 2]);
     expect(FunnelJourneySchema.parse(journeys[0]).name).toBe('Test Client');
+  });
+
+  test('round-trips the dossier identity fields (AC52)', () => {
+    db = openDb(':memory:');
+    db.funnel.insertContact(
+      contact({
+        person: 'Grace Lin',
+        company: 'Lin & Co Accounting',
+        role: 'Managing Partner',
+        linkedin: 'https://linkedin.com/in/gracelin-example',
+      }),
+    );
+    db.funnel.insertTouch(touch());
+    const [j] = db.funnel.journeys();
+    expect(j.person).toBe('Grace Lin');
+    expect(j.company).toBe('Lin & Co Accounting');
+    expect(j.role).toBe('Managing Partner');
+    expect(j.linkedin).toBe('https://linkedin.com/in/gracelin-example');
   });
 
   test('venture filter narrows journeys', () => {
@@ -166,6 +190,10 @@ describe('funnelSummary', () => {
     url: null,
     email: null,
     phone: null,
+    person: null,
+    company: null,
+    role: null,
+    linkedin: null,
     createdAt: '2026-06-01',
     touches: [
       {
@@ -234,6 +262,10 @@ describe('journeyMeta', () => {
     url: null,
     email: null,
     phone: null,
+    person: null,
+    company: null,
+    role: null,
+    linkedin: null,
     createdAt: at,
     touches: [
       {
@@ -338,6 +370,10 @@ describe('funnelSpaceModel', () => {
     url: null,
     email: null,
     phone: null,
+    person: null,
+    company: null,
+    role: null,
+    linkedin: null,
     createdAt: dAgo(30),
     touches,
     ...over,
@@ -371,6 +407,22 @@ describe('funnelSpaceModel', () => {
     expect(node.daysSinceLastTouch).toBe(21);
   });
 
+  test('identity fields ride onto the node for the dossier (AC52/AC54)', () => {
+    const j = mkJourney('who', 'engaged', [mkTouch('who', 1, 'first_touch', 1)], {
+      person: 'Reese Calder',
+      company: 'Calder Holdings LLC',
+      role: 'C-level',
+      linkedin: 'https://linkedin.com/in/reesecalder-example',
+      email: 'reese@example.com',
+      phone: '+15550100442',
+    });
+    const [node] = funnelSpaceModel([j], NOW);
+    expect(node.person).toBe('Reese Calder');
+    expect(node.company).toBe('Calder Holdings LLC');
+    expect(node.role).toBe('C-level');
+    expect(node.linkedin).toBe('https://linkedin.com/in/reesecalder-example');
+  });
+
   test('node radius grows with likelihood-to-buy inside compact 2.5–5.5px bounds', () => {
     const lo = mkJourney('lo', 'engaged', [mkTouch('lo', 1, 'first_touch', 1)], { likelihood: 0 });
     const hi = mkJourney('hi', 'engaged', [mkTouch('hi', 1, 'first_touch', 1)], { id: 'hi', likelihood: 100 });
@@ -391,5 +443,99 @@ describe('funnelSpaceModel', () => {
 
   test('returns an empty model for no journeys', () => {
     expect(funnelSpaceModel([], NOW)).toEqual([]);
+  });
+});
+
+describe('attentionQueue — what to act on today (AC55)', () => {
+  const NOW = new Date('2026-07-11T12:00:00Z');
+  const daysAgo = (days: number) => new Date(NOW.getTime() - days * 86_400_000).toISOString().slice(0, 10);
+  const lead = (
+    id: string,
+    over: Partial<FunnelContact>,
+    quietDays: number,
+  ): FunnelJourney => ({
+    id,
+    name: id,
+    venture: 'vantage',
+    status: 'engaged',
+    product: null,
+    amountUsd: null,
+    relationship: 'warm',
+    likelihood: 50,
+    url: null,
+    email: null,
+    phone: null,
+    person: null,
+    company: null,
+    role: null,
+    linkedin: null,
+    createdAt: daysAgo(quietDays + 10),
+    touches: [
+      {
+        id: `${id}-t1`, contactId: id, seq: 1, stage: 'engaged',
+        channel: 'crm', label: 'x', source: 'attio', at: daysAgo(quietDays),
+      },
+    ],
+    ...over,
+  });
+
+  test('pushNow = hot actives, freshest movement first, capped at 4', () => {
+    const q = attentionQueue(
+      [
+        lead('cool', { likelihood: 40 }, 2), // not hot — out
+        lead('hot-fresh', { likelihood: 90 }, 1),
+        lead('hot-later', { likelihood: 80 }, 5),
+        lead('hot-a', { likelihood: 85 }, 2),
+        lead('hot-b', { likelihood: 75 }, 3),
+        lead('hot-c', { likelihood: 71 }, 4),
+        lead('won', { likelihood: 95, status: 'converted' }, 1), // converted — out
+        lead('dying', { likelihood: 95 }, 30), // decaying — belongs to saveNow
+        // first_touch never stalls, but a fading lead is a save, not a push
+        lead('fading-inbound', { likelihood: 95, status: 'first_touch' }, 30),
+      ],
+      NOW,
+    );
+    expect(q.pushNow.map((j) => j.id)).toEqual(['hot-fresh', 'hot-a', 'hot-b', 'hot-c']);
+  });
+
+  test('saveNow = decaying leads, highest likelihood first, capped at 4', () => {
+    const q = attentionQueue(
+      [
+        lead('fine', { likelihood: 90 }, 3), // active — not dying
+        lead('save-1', { likelihood: 88 }, 25),
+        lead('save-2', { likelihood: 70 }, 40),
+        lead('save-3', { likelihood: 55 }, 30),
+        lead('save-4', { likelihood: 50 }, 22),
+        lead('save-5', { likelihood: 20 }, 35),
+        lead('gone', { likelihood: 99 }, 120), // decayed → archive, not the queue
+      ],
+      NOW,
+    );
+    expect(q.saveNow.map((j) => j.id)).toEqual(['save-1', 'save-2', 'save-3', 'save-4']);
+  });
+
+  test('a fading first_touch lead is a save, never a push (it cannot stall)', () => {
+    const q = attentionQueue([lead('fading-inbound', { likelihood: 95, status: 'first_touch' }, 30)], NOW);
+    expect(q.pushNow).toEqual([]);
+    expect(q.saveNow.map((j) => j.id)).toEqual(['fading-inbound']);
+  });
+
+  test('empty pipeline yields empty queues', () => {
+    expect(attentionQueue([], NOW)).toEqual({ pushNow: [], saveNow: [] });
+  });
+});
+
+describe('orbitSpread — crowded hubs breathe wider', () => {
+  test('a dozen leads keep the tight constellation, a live pipeline spreads', () => {
+    expect(orbitSpread(1)).toBe(1);
+    expect(orbitSpread(12)).toBe(1);
+    const crowd = orbitSpread(105);
+    expect(crowd).toBeGreaterThan(1.5);
+    expect(crowd).toBeLessThanOrEqual(2.4);
+    // monotonic and capped
+    expect(orbitSpread(50)).toBeLessThan(crowd);
+    expect(orbitSpread(1000)).toBe(2.4);
+    // safe on empty clusters
+    expect(orbitSpread(0)).toBe(1);
   });
 });

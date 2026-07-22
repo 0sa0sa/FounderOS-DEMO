@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowUpRight, TrendingDown, TrendingUp, X } from 'lucide-react';
+import { ArrowUpRight, MessageSquare, TrendingDown, TrendingUp, X } from 'lucide-react';
 import type { SocialGrowth } from '@/lib/schemas';
+import type { DmThread } from '@/lib/social';
+import { InstagramDmInbox } from '@/components/InstagramDmInbox';
 
 type Range = 7 | 30 | 60 | 'all';
 const RANGES: Range[] = [7, 30, 60, 'all'];
@@ -260,29 +262,93 @@ function MetricTile({
   );
 }
 
+/** Wide modal that expands the DM tile into the full Instagram inbox with a
+    reply box — the "answer DMs from here" view. */
+function DmInboxPopout({ threads, nowMs, onClose }: { threads: DmThread[]; nowMs: number; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-os-bg/70 p-3 backdrop-blur-sm sm:p-6" onClick={onClose}>
+      <div
+        className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-lg-t border border-os-border-strong bg-os-surface shadow-[0_24px_80px_-16px_rgba(0,0,0,0.6)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-os-border px-5 py-3.5">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-os-accent" />
+            <h2 className="text-sm font-bold">Instagram DMs</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="grid h-7 w-7 place-items-center rounded-sm-t border border-os-border text-os-muted transition-colors hover:border-os-border-strong hover:text-os-text"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div className="p-5">
+          <InstagramDmInbox threads={threads} nowMs={nowMs} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** The tile that replaces the old "Top platform" metric: DM management. Click
+    expands into the inbox popout. Headline surfaces what needs a reply. */
+function DmTile({ unreplied, total, onOpen }: { unreplied: number; total: number; onOpen: () => void }) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpen()}
+      className="hoverable group flex cursor-pointer flex-col gap-1 rounded-lg-t border border-os-border bg-os-surface px-3 py-2 text-left"
+    >
+      <div className="flex items-center justify-between">
+        <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-os-dim">Instagram DMs</span>
+        <ArrowUpRight className="h-3 w-3 text-os-dim opacity-0 transition-opacity group-hover:opacity-100" />
+      </div>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className={`font-mono text-[16px] font-semibold leading-none tracking-[-0.02em] ${unreplied > 0 ? 'text-os-warn' : ''}`}>
+          {unreplied > 0 ? `${unreplied} to reply` : `${total} threads`}
+        </span>
+        <span className="min-w-0 truncate font-mono text-[9.5px] text-os-dim">{total} conversations</span>
+      </div>
+      <span className="flex items-center gap-1.5 font-mono text-[9.5px] text-os-dim">
+        <MessageSquare className="h-3 w-3" /> open inbox · reply here
+      </span>
+    </div>
+  );
+}
+
 export function SocialStatStrip({
   audienceTotal,
   audienceGrowth,
   totalDms,
   dmGrowth,
   platformsCount,
-  topPlatformLabel,
-  topPlatformValue,
+  dmThreads,
+  nowMs,
 }: {
   audienceTotal: number;
   audienceGrowth: SocialGrowth;
   totalDms: number;
   dmGrowth: SocialGrowth;
   platformsCount: number;
-  topPlatformLabel: string;
-  topPlatformValue: string;
+  dmThreads: DmThread[];
+  nowMs: number;
 }) {
   const [audRange, setAudRange] = useState<Range>(30);
   const [dmRange, setDmRange] = useState<Range>(30);
-  const [popout, setPopout] = useState<'audience' | 'dms' | null>(null);
+  const [popout, setPopout] = useState<'audience' | 'dms' | 'inbox' | null>(null);
 
   const audPct = audienceGrowth[RANGE_KEY[String(audRange)]];
   const dmPct = dmGrowth[RANGE_KEY[String(dmRange)]];
+  const unreplied = dmThreads.filter((t) => t.unreplied).length;
 
   return (
     <>
@@ -291,7 +357,7 @@ export function SocialStatStrip({
         <div className="flex flex-col gap-1 rounded-lg-t border border-os-border bg-os-surface px-3 py-2">
           <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-os-dim">Total reach</span>
           <div className="flex items-baseline justify-between gap-2">
-            <span className="font-mono text-[16px] font-semibold leading-none tracking-[-0.02em]">{fmtNum(audienceTotal)}</span>
+            <span className="font-mono text-[20px] font-semibold leading-none tracking-[-0.02em]">{fmtNum(audienceTotal)}</span>
             <span className="min-w-0 truncate font-mono text-[9.5px] text-os-dim">{platformsCount} platforms + email</span>
           </div>
         </div>
@@ -324,20 +390,13 @@ export function SocialStatStrip({
           onOpen={() => setPopout('dms')}
         />
 
-        {/* Top platform — static (design package). Uppercase at the shared
-            headline size so the word never reads bigger than the numerals. */}
-        <div className="flex flex-col gap-1 rounded-lg-t border border-os-border bg-os-surface px-3 py-2">
-          <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-os-dim">Top platform</span>
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="font-mono text-[16px] font-semibold uppercase leading-none tracking-[-0.01em]">
-              {topPlatformLabel}
-            </span>
-            <span className="min-w-0 truncate font-mono text-[9.5px] text-os-dim">{topPlatformValue}</span>
-          </div>
-        </div>
+        {/* Instagram DMs — replaces the retired "Top platform" tile. Click to
+            expand into the inbox and answer DMs. */}
+        <DmTile unreplied={unreplied} total={dmThreads.length} onOpen={() => setPopout('inbox')} />
       </div>
 
-      {popout && <StatPopout metric={popout} onClose={() => setPopout(null)} />}
+      {(popout === 'audience' || popout === 'dms') && <StatPopout metric={popout} onClose={() => setPopout(null)} />}
+      {popout === 'inbox' && <DmInboxPopout threads={dmThreads} nowMs={nowMs} onClose={() => setPopout(null)} />}
     </>
   );
 }

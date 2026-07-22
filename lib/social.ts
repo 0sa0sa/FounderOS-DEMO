@@ -7,6 +7,7 @@ import {
   SocialPlatformSchema,
   type SocialDashboard,
   type SocialDm,
+  type SocialDmMessage,
   type SocialGrowth,
   type SocialPlatform,
   type SocialPlatformDetail,
@@ -335,4 +336,44 @@ export function platformDetail(db: FounderDb, platform: SocialPlatform): SocialP
     growth: growthFor(snapshots),
     snapshots,
   });
+}
+
+// ── DM inbox (threads) ──────────────────────────────────────────────────────
+
+/** A conversation with one subscriber: messages chronological (oldest first),
+    plus the most recent message and whether it still needs a reply. */
+export type DmThread = {
+  subscriberId: string;
+  name: string;
+  handle: string | null;
+  messages: SocialDmMessage[];
+  last: SocialDmMessage;
+  unreplied: boolean;
+};
+
+/** Group the DM messages for a platform into conversations, newest thread
+    first. `unreplied` is true when the last message is inbound (needs a reply).
+    Seeded until the ManyChat webhook feeds `social_dm_messages` live. */
+export function dmThreads(db: FounderDb, platform: SocialPlatform = 'instagram'): DmThread[] {
+  const groups = new Map<string, SocialDmMessage[]>();
+  for (const m of db.social.dmMessages(platform)) {
+    // dmMessages is newest-first; collect per subscriber.
+    const arr = groups.get(m.subscriberId) ?? [];
+    arr.push(m);
+    groups.set(m.subscriberId, arr);
+  }
+  const threads: DmThread[] = [];
+  for (const [subscriberId, newestFirst] of groups) {
+    const last = newestFirst[0];
+    threads.push({
+      subscriberId,
+      name: last.name,
+      handle: last.handle,
+      messages: [...newestFirst].reverse(), // chronological
+      last,
+      unreplied: last.direction === 'in',
+    });
+  }
+  threads.sort((a, b) => (a.last.ts < b.last.ts ? 1 : a.last.ts > b.last.ts ? -1 : 0));
+  return threads;
 }

@@ -128,7 +128,7 @@ function memoryConstellation(): MemoryGraph | undefined {
     const store = readStoreNotes();
     const seen = new Set(store.map((n) => n.path));
     const vault = readVaultNotes().filter((n) => !seen.has(n.path));
-    // the Chat Archive (640 conversations) is spotlighted: a guaranteed
+    // the Chat Archive (500 conversations) is spotlighted: a guaranteed
     // slice of the page cap and its cluster centered in the disc
     const distilled = distillMemoryGraph(buildBrainGraph([...store, ...vault]), {
       centerFolder: 'Chat Archive',
@@ -184,7 +184,7 @@ export default async function BrainPage() {
     },
     {
       name: 'Supabase Second Brain',
-      sub: '900 pages / 11k chunks · free tier idle-pause',
+      sub: '918 pages / 11k chunks · free tier idle-pause',
       val: fallbackActive ? 'PAUSED' : 'LIVE',
       state: fallbackActive ? 'available' : 'connected',
     },
@@ -198,6 +198,7 @@ export default async function BrainPage() {
         eyebrow="knowledge core"
         title="G-Brain"
         caret
+        rightWide
         right={<BrainDump compact />}
       />
 
@@ -357,7 +358,7 @@ export default async function BrainPage() {
           <Stage step="3" title="Supabase Postgres + pgvector" caption='"Second Brain" · ZeroEntropy embeddings'>
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-md-t border border-os-border bg-os-surface2 px-3 py-2.5">
-                <div className="font-mono text-xl font-bold">900</div>
+                <div className="font-mono text-xl font-bold">918</div>
                 <div className="font-mono text-[10px] uppercase tracking-wider text-os-dim">pages · last known</div>
               </div>
               <div className="rounded-md-t border border-os-border bg-os-surface2 px-3 py-2.5">

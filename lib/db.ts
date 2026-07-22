@@ -20,12 +20,15 @@ import {
   EmailListSnapshotSchema,
   SocialDmSchema,
   SocialDmSnapshotSchema,
+  SocialDmMessageSchema,
   SocialPostSchema,
   FunnelContactSchema,
   FunnelTouchSchema,
   FunnelJourneySchema,
   PersonSchema,
   SopTaskSchema,
+  WorkflowSchema,
+  SkillSchema,
   ToolSchema,
   type Agent,
   type AgentCron,
@@ -47,6 +50,7 @@ import {
   type EmailListSnapshot,
   type SocialDm,
   type SocialDmSnapshot,
+  type SocialDmMessage,
   type SocialPost,
   type FunnelContact,
   type FunnelTouch,
@@ -54,6 +58,8 @@ import {
   type FunnelVenture,
   type Person,
   type SopTask,
+  type Workflow,
+  type Skill,
   type Tool,
 } from '@/lib/schemas';
 
@@ -212,6 +218,19 @@ CREATE TABLE IF NOT EXISTS social_dm_snapshots (
   source TEXT NOT NULL,
   PRIMARY KEY (platform, captured_at)
 );
+CREATE TABLE IF NOT EXISTS social_dm_messages (
+  id TEXT PRIMARY KEY,
+  platform TEXT NOT NULL,
+  subscriber_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  handle TEXT,
+  text TEXT NOT NULL,
+  direction TEXT NOT NULL,
+  tag TEXT,
+  ts TEXT NOT NULL,
+  source TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_social_dm_messages_ts ON social_dm_messages (ts);
 CREATE TABLE IF NOT EXISTS social_posts (
   id TEXT PRIMARY KEY,
   caption TEXT NOT NULL,
@@ -248,6 +267,10 @@ CREATE TABLE IF NOT EXISTS funnel_contacts (
   likelihood INTEGER NOT NULL DEFAULT 50,
   email TEXT,
   phone TEXT,
+  person TEXT,
+  company TEXT,
+  role TEXT,
+  linkedin TEXT,
   created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS funnel_touches (
@@ -259,6 +282,25 @@ CREATE TABLE IF NOT EXISTS funnel_touches (
   label TEXT NOT NULL,
   source TEXT NOT NULL,
   at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS workflows (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  subtitle TEXT NOT NULL DEFAULT '',
+  revenue_usd INTEGER NOT NULL DEFAULT 0,
+  ord INTEGER NOT NULL DEFAULT 0,
+  steps TEXT NOT NULL DEFAULT '[]'
+);
+CREATE TABLE IF NOT EXISTS skills (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  owner_agent_id TEXT,
+  status TEXT NOT NULL DEFAULT 'planned',
+  tools TEXT NOT NULL DEFAULT '[]',
+  markdown TEXT NOT NULL DEFAULT '',
+  ord INTEGER NOT NULL DEFAULT 0
 );
 `;
 
@@ -280,6 +322,20 @@ function migrateFunnelContactsTable(db: InstanceType<typeof Database>): void {
   if (!columns.has('likelihood')) db.exec('ALTER TABLE funnel_contacts ADD COLUMN likelihood INTEGER NOT NULL DEFAULT 50');
   if (!columns.has('email')) db.exec('ALTER TABLE funnel_contacts ADD COLUMN email TEXT');
   if (!columns.has('phone')) db.exec('ALTER TABLE funnel_contacts ADD COLUMN phone TEXT');
+  // dossier identity (Round 15) — the human behind the deal
+  for (const col of ['person', 'company', 'role', 'linkedin']) {
+    if (!columns.has(col)) db.exec(`ALTER TABLE funnel_contacts ADD COLUMN ${col} TEXT`);
+  }
+}
+
+// Skills gained a `markdown` (SKILL.md) column after first ship. Add it, and
+// clear the stale rows so the re-seed backfills each skill's doc.
+function migrateSkillsTable(db: InstanceType<typeof Database>): void {
+  const columns = new Set((db.pragma('table_info(skills)') as { name: string }[]).map((c) => c.name));
+  if (columns.size > 0 && !columns.has('markdown')) {
+    db.exec("ALTER TABLE skills ADD COLUMN markdown TEXT NOT NULL DEFAULT ''");
+    db.exec('DELETE FROM skills');
+  }
 }
 
 type AgentRow = {
@@ -318,6 +374,7 @@ export function openDb(path: string) {
   db.exec(DDL);
   migrateAgentsTable(db);
   migrateFunnelContactsTable(db);
+  migrateSkillsTable(db);
 
   const departments = {
     all(): Department[] {
@@ -753,6 +810,24 @@ export function openDb(path: string) {
             .all();
       return rows.map((r) => SocialDmSnapshotSchema.parse(r));
     },
+    // Individual DM messages (the inbox). Fed live by POST /api/webhooks/manychat;
+    // seeded until then. Upsert by id so replayed webhooks don't duplicate.
+    upsertDmMessage(m: SocialDmMessage): void {
+      SocialDmMessageSchema.parse(m);
+      db.prepare(
+        `INSERT OR REPLACE INTO social_dm_messages
+           (id, platform, subscriber_id, name, handle, text, direction, tag, ts, source)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(m.id, m.platform, m.subscriberId, m.name, m.handle, m.text, m.direction, m.tag, m.ts, m.source);
+    },
+    dmMessages(platform?: SocialPlatform): SocialDmMessage[] {
+      const cols =
+        'id, platform, subscriber_id AS subscriberId, name, handle, text, direction, tag, ts, source';
+      const rows = platform
+        ? db.prepare(`SELECT ${cols} FROM social_dm_messages WHERE platform = ? ORDER BY ts DESC`).all(platform)
+        : db.prepare(`SELECT ${cols} FROM social_dm_messages ORDER BY ts DESC`).all();
+      return rows.map((r) => SocialDmMessageSchema.parse(r));
+    },
   };
 
   const emailList = {
@@ -879,6 +954,65 @@ export function openDb(path: string) {
     },
   };
 
+  const workflows = {
+    all(): Workflow[] {
+      return db
+        .prepare('SELECT * FROM workflows ORDER BY ord, name')
+        .all()
+        .map((r: any) =>
+          WorkflowSchema.parse({
+            id: r.id,
+            name: r.name,
+            subtitle: r.subtitle,
+            revenueUsd: r.revenue_usd,
+            order: r.ord,
+            steps: JSON.parse(r.steps),
+          }),
+        );
+    },
+    insert(w: Workflow): void {
+      WorkflowSchema.parse(w);
+      db.prepare(
+        'INSERT OR REPLACE INTO workflows (id, name, subtitle, revenue_usd, ord, steps) VALUES (?, ?, ?, ?, ?, ?)',
+      ).run(w.id, w.name, w.subtitle, w.revenueUsd, w.order, JSON.stringify(w.steps));
+    },
+    deleteWhereIdNotIn(ids: string[]): void {
+      const placeholders = ids.map(() => '?').join(', ');
+      db.prepare(`DELETE FROM workflows WHERE id NOT IN (${placeholders})`).run(...ids);
+    },
+  };
+
+  const skills = {
+    all(): Skill[] {
+      return db
+        .prepare('SELECT * FROM skills ORDER BY ord, name')
+        .all()
+        .map((r: any) =>
+          SkillSchema.parse({
+            id: r.id,
+            name: r.name,
+            category: r.category,
+            description: r.description,
+            ownerAgentId: r.owner_agent_id,
+            status: r.status,
+            tools: JSON.parse(r.tools),
+            markdown: r.markdown,
+            order: r.ord,
+          }),
+        );
+    },
+    insert(s: Skill): void {
+      SkillSchema.parse(s);
+      db.prepare(
+        'INSERT OR REPLACE INTO skills (id, name, category, description, owner_agent_id, status, tools, markdown, ord) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      ).run(s.id, s.name, s.category, s.description, s.ownerAgentId, s.status, JSON.stringify(s.tools), s.markdown, s.order);
+    },
+    deleteWhereIdNotIn(ids: string[]): void {
+      const placeholders = ids.map(() => '?').join(', ');
+      db.prepare(`DELETE FROM skills WHERE id NOT IN (${placeholders})`).run(...ids);
+    },
+  };
+
   const rowToFunnelTouch = (r: any): FunnelTouch =>
     FunnelTouchSchema.parse({
       id: r.id,
@@ -895,8 +1029,8 @@ export function openDb(path: string) {
     insertContact(c: FunnelContact): void {
       FunnelContactSchema.parse(c);
       db.prepare(
-        'INSERT OR REPLACE INTO funnel_contacts (id, name, venture, status, product, amount_usd, relationship, likelihood, email, phone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      ).run(c.id, c.name, c.venture, c.status, c.product, c.amountUsd, c.relationship, c.likelihood, c.email, c.phone, c.createdAt);
+        'INSERT OR REPLACE INTO funnel_contacts (id, name, venture, status, product, amount_usd, relationship, likelihood, email, phone, person, company, role, linkedin, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      ).run(c.id, c.name, c.venture, c.status, c.product, c.amountUsd, c.relationship, c.likelihood, c.email, c.phone, c.person, c.company, c.role, c.linkedin, c.createdAt);
     },
     insertTouch(t: FunnelTouch): void {
       FunnelTouchSchema.parse(t);
@@ -924,6 +1058,10 @@ export function openDb(path: string) {
           likelihood: r.likelihood,
           email: r.email,
           phone: r.phone,
+          person: r.person,
+          company: r.company,
+          role: r.role,
+          linkedin: r.linkedin,
           createdAt: r.created_at,
           touches: touchStmt.all(r.id).map(rowToFunnelTouch),
         }),
@@ -952,6 +1090,8 @@ export function openDb(path: string) {
     funnel,
     people,
     sopTasks,
+    workflows,
+    skills,
     close: () => db.close(),
   };
 }

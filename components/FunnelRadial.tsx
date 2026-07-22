@@ -51,7 +51,12 @@ const staggerMs = (count: number) => Math.min(340, 5000 / Math.max(1, count));
 type Pos = { x: number; y: number };
 const GOLDEN = 2.399963;
 
-const polar = (a: number, r: number): Pos => ({ x: CX + Math.cos(a) * r, y: CY + Math.sin(a) * r });
+// rounded to 2 decimals: Math.cos/sin differ in the last ULPs between V8
+// builds (Node SSR vs browser), and hydration diffs cx/cy as prop mismatches
+const polar = (a: number, r: number): Pos => ({
+  x: Math.round((CX + Math.cos(a) * r) * 100) / 100,
+  y: Math.round((CY + Math.sin(a) * r) * 100) / 100,
+});
 
 /** The fixed angle node i holds inside its wedge (jittered, never on a spoke). */
 const wedgeAngle = (n: FunnelRadialNode, i: number): number =>
@@ -107,10 +112,21 @@ function replayPos(n: FunnelRadialNode, i: number, tMs: number, stagger: number)
   return null; // replay finished — hand over to the orbit
 }
 
-export function FunnelRadial({ model }: { model: FunnelRadialModel }) {
+export function FunnelRadial({
+  model,
+  initialLeadId,
+}: {
+  model: FunnelRadialModel;
+  /** Deep link (?lead=) — the attention rail pins this lead's dossier. */
+  initialLeadId?: string | null;
+}) {
   const { nodes, segments } = model;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
+  // rail clicks navigate with ?lead= — pin that lead's dossier
+  useEffect(() => {
+    if (initialLeadId && nodes.some((n) => n.id === initialLeadId)) setSelectedId(initialLeadId);
+  }, [initialLeadId, nodes]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef(new Map<string, SVGGElement>());
@@ -164,6 +180,8 @@ export function FunnelRadial({ model }: { model: FunnelRadialModel }) {
   }
 
   const selected = nodes.find((n) => n.id === selectedId) ?? null;
+  // hover-or-pinned node → the top readout (click first, else the hovered one)
+  const anchorNode = selected ?? (hoverId ? nodes.find((n) => n.id === hoverId) ?? null : null);
   const convertedTotal = segments.reduce((sum, s) => sum + s.converted, 0);
 
   return (
@@ -178,6 +196,16 @@ export function FunnelRadial({ model }: { model: FunnelRadialModel }) {
       >
         {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
       </button>
+
+      {/* hover readout — what the cursor is on, listed at the top, no click */}
+      {anchorNode && (
+        <div className="pointer-events-none absolute left-2 top-1.5 z-20 flex items-baseline gap-2 font-mono">
+          <span className="text-[12px] font-semibold text-os-text">{anchorNode.name}</span>
+          <span className="text-[9.5px] uppercase tracking-[0.12em] text-os-dim">
+            {anchorNode.likelihood}% · {anchorNode.daysSinceLastTouch}d quiet
+          </span>
+        </div>
+      )}
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="block w-full"
@@ -222,7 +250,7 @@ export function FunnelRadial({ model }: { model: FunnelRadialModel }) {
               <circle cx={polar(mid, RING[0]).x} cy={polar(mid, RING[0]).y} r={2.5} fill={WEDGE_COLOR[sIdx]} />
               <text
                 x={lp.x}
-                y={lp.y + Math.sin(mid) * 7 + 3}
+                y={Math.round((lp.y + Math.sin(mid) * 7 + 3) * 100) / 100}
                 textAnchor={anchor}
                 fill={seg.count > 0 ? 'var(--text-2)' : 'var(--text-3)'}
                 fontSize={10.5}

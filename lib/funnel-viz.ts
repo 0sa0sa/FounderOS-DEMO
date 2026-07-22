@@ -4,10 +4,12 @@
  * client so first paint never mismatches (no Math.random, no Date).
  */
 
-/** Deterministic per-node noise — stable across SSR + client. */
+/** Deterministic per-node noise — stable across SSR + client. Quantized to
+ * 4 decimals because Math.sin differs in the last ULPs between V8 builds
+ * (Node vs browser), which hydration diffs as a prop mismatch. */
 export const rnd = (i: number, salt: number): number => {
   const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453;
-  return x - Math.floor(x);
+  return Math.round((x - Math.floor(x)) * 10000) / 10000;
 };
 
 export const easeInOut = (u: number): number => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
@@ -38,3 +40,14 @@ export const decayedColor = (baseVar: string, decay: number, converted: boolean)
 
 /** The node itself decays: it dims as it ages out. */
 export const decayedOpacity = (decay: number): number => 0.95 - decay * 0.45;
+
+/* ---------------- Orbit flow view (hubs left → right) ---------------- */
+
+/**
+ * Crowded hubs breathe wider: the orbit band around a stage hub scales with
+ * how many leads live there, so a dozen seeded clients keep the tight
+ * constellation while the ~100-lead first-touch cluster of the live pipeline
+ * spreads into a readable field instead of a packed donut.
+ */
+export const orbitSpread = (clusterCount: number): number =>
+  Math.min(2.4, Math.max(1, Math.sqrt(clusterCount / 12)));

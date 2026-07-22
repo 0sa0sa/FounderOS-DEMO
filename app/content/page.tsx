@@ -10,8 +10,8 @@ import type { Agent } from '@/lib/schemas';
 export const dynamic = 'force-dynamic';
 
 // The Vantage content-intelligence system this view backlinks out to.
-const INTEL_URL = 'https://analytics.example.com';
-const INTEL_ANALYTICS_URL = 'https://analytics.example.com/my-analytics';
+const INTEL_URL = 'https://intel.vantage.ai';
+const INTEL_ANALYTICS_URL = 'https://intel.vantage.ai/my-analytics';
 
 function prettyTool(slug: string): string {
   return slug.split(/[-_]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');

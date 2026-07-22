@@ -1,6 +1,6 @@
 /**
  * Trakyo seam — organic content attribution for the funnel (mainly Agency
- * Cohort: which post/reel actually produced a lead). Trakyo has no public
+ * Accelerant: which post/reel actually produced a lead). Trakyo has no public
  * API yet, so `trakyoTouches()` honestly returns nothing until TRAKYO_API_KEY
  * plus a published endpoint exist; the merge logic below is real and tested,
  * so wiring the live pull is a one-function change on the day Trakyo ships.

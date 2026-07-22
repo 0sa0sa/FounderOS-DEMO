@@ -43,7 +43,8 @@ const GHL_VERSION = '2021-07-28';
 
 /**
  * Pipeline-position fraction → canonical hub for open opportunities. Stage
- * names win over position where the semantics are explicit (some pipelines park "Nurture" stages late in the list).
+ * names win over position where the semantics are explicit (Alex's Main
+ * Pipeline parks "Nurture 2 Weeks" stages late in the list).
  */
 function stageFor(fraction: number, stageName: string): FunnelStage {
   if (/nurtur/i.test(stageName)) return 'nurtured';

@@ -108,7 +108,7 @@ Tags:      13
 Timeline:  0
 
 By type:
-  conversation: 640
+  conversation: 500
   note: 99
   concept: 89
 `;
@@ -134,7 +134,7 @@ describe('parseGbrainStats', () => {
     expect(stats.chunks).toBe(11185);
     expect(stats.embedded).toBe(11185);
     expect(stats.byType).toEqual([
-      { type: 'conversation', count: 640 },
+      { type: 'conversation', count: 500 },
       { type: 'note', count: 99 },
       { type: 'concept', count: 89 },
     ]);
@@ -154,7 +154,7 @@ describe('GBrain stats()', () => {
       chunks: 11185,
       embedded: 11185,
       byType: [
-        { type: 'conversation', count: 640 },
+        { type: 'conversation', count: 500 },
         { type: 'note', count: 99 },
         { type: 'concept', count: 89 },
       ],

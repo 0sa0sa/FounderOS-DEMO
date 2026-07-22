@@ -99,12 +99,12 @@ export function AgentChat({
               onKeyDown={(e) => e.key === 'Enter' && send()}
               placeholder={`Message ${agentName}…`}
               disabled={sending}
-              className="min-w-0 flex-1 rounded-sm-t border border-os-border bg-os-bg px-2.5 py-1.5 text-[11px] text-os-text placeholder:text-os-dim focus:border-os-border-strong focus:outline-none"
+              className="min-w-0 flex-1 rounded-full border border-os-border bg-os-bg px-2.5 py-1.5 text-[11px] text-os-text placeholder:text-os-dim focus:border-os-border-strong focus:outline-none"
             />
             <button
               onClick={send}
               disabled={sending || !input.trim()}
-              className="flex shrink-0 items-center rounded-sm-t border border-os-border-strong bg-os-surface2 px-2.5 py-1.5 text-os-text transition-opacity hover:border-os-dim disabled:opacity-40"
+              className="flex shrink-0 items-center rounded-full border border-os-border-strong bg-os-surface2 px-2.5 py-1.5 text-os-text transition-opacity hover:border-os-dim disabled:opacity-40"
               aria-label="Send"
             >
               {sending ? <span className="font-mono text-[10px]">…</span> : <Send className="h-3 w-3" />}

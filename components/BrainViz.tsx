@@ -8,7 +8,7 @@ import { layoutBrainNodes, polar, type BrainCluster } from '@/lib/brain-viz';
 export function BrainViz({
   clusters,
   health,
-  supabasePages = 900,
+  supabasePages = 918,
   version = 'v0.41',
   compact = false,
 }: {

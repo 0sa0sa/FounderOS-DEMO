@@ -20,9 +20,12 @@ export function getDb(): FounderDb {
   // idempotent (INSERT OR REPLACE), so re-running only adds what's missing.
   if (
     instance.departments.all().length === 0 ||
+    instance.workflows.all().length === 0 ||
+    instance.skills.all().length === 0 ||
     instance.social.accounts().length === 0 ||
     instance.emailList.snapshots().length === 0 ||
-    instance.social.dmSnapshots().length === 0
+    instance.social.dmSnapshots().length === 0 ||
+    instance.social.dmMessages().length === 0
   ) {
     seedDatabase(instance);
   }

@@ -7,9 +7,14 @@ import { splitMetrics, type MetricInput, type MetricTile } from '@/lib/operating
 import { attioStatus } from '@/lib/connectors/attio';
 import { wisprStatus } from '@/lib/connectors/wispr';
 import { readStoreNotes } from '@/lib/connectors/gbrain';
+import { stripeSnapshot } from '@/lib/connectors/payments';
+import { unreadCounts } from '@/lib/connectors/email';
+import { beehiivSubscribers } from '@/lib/connectors/beehiiv';
 import type { SocialPlatform } from '@/lib/schemas';
+import type { PieItem } from '@/lib/social-chart';
 import { PageHeader } from '@/components/PageHeader';
 import { Badge, Label, SectionHead, Spark } from '@/components/terminal';
+import { SharePie } from '@/components/SharePie';
 import { formatFollowers, GrowthBadge, MiniBars } from '@/components/SocialStats';
 
 export const dynamic = 'force-dynamic';
@@ -49,6 +54,8 @@ function fmtShort(iso: string): string {
     .toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
     .toLowerCase();
 }
+
+const fmtCount = (n: number) => n.toLocaleString('en-US');
 
 /** Responsive area chart for daily agent-run counts (real log, honest zeros). */
 function RunVolumeChart({ data }: { data: { date: string; count: number }[] }) {
@@ -110,12 +117,45 @@ function MetricCard({ tile }: { tile: MetricTile }) {
   );
 }
 
+/** A titled card that hosts one share donut — the Distribution row's unit. */
+function PieCard({
+  title, sub, items, total, centerLabel, format, ariaLabel,
+}: {
+  title: string;
+  sub: string;
+  items: PieItem[];
+  total: number;
+  centerLabel: string;
+  format: (v: number) => string;
+  ariaLabel: string;
+}) {
+  return (
+    <div className="rounded-lg-t border border-os-border bg-os-surface p-5">
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <Label>{title}</Label>
+        <span className="font-mono text-[9.5px] uppercase tracking-[0.1em] text-os-dim">{sub}</span>
+      </div>
+      <SharePie
+        framed={false}
+        stacked
+        donutPx={158}
+        items={items}
+        total={total}
+        centerLabel={centerLabel}
+        format={format}
+        ariaLabel={ariaLabel}
+      />
+    </div>
+  );
+}
+
 export default async function AnalyticsPage() {
   const db = getDb();
   syncFromZernioConfig(db);
   const today = new Date().toISOString().slice(0, 10);
 
-  // Real agent-run activity — powers the agent-runs tile and the volume chart.
+  // Real agent-run activity — powers the agent-runs tile, the volume chart, and
+  // the run-distribution pies.
   const runs = db.agentRuns.recent(2000);
   const runVolume = agentRunVolume(runs, today, 14);
   const windowRuns = runVolume.reduce((s, p) => s + p.count, 0);
@@ -127,12 +167,18 @@ export default async function AnalyticsPage() {
   const audience7d = audienceGrowthPct(db, 7);
 
   // Live reads from the wired connectors (parallel; each degrades to pending).
-  const [attio, wispr] = await Promise.all([
+  const [attio, wispr, stripe, emailUnread, subs] = await Promise.all([
     attioStatus().catch(() => null),
     wisprStatus().catch(() => null),
+    stripeSnapshot().catch(() => null),
+    unreadCounts()
+      .then((cs) => cs.reduce((sum, c) => sum + c.unread, 0))
+      .catch(() => null),
+    beehiivSubscribers().catch(() => null),
   ]);
   const pipelineDeals = attio?.state === 'connected' ? Number(attio.meta?.deals ?? 0) : null;
   const dictations = wispr?.state === 'connected' ? Number(wispr.meta?.dictations ?? 0) : null;
+  const stripeAvail = stripe ? Math.round((stripe.available[0]?.amount ?? 0) / 100) : null;
   let brainPages = 0;
   try {
     brainPages = readStoreNotes().length;
@@ -140,7 +186,7 @@ export default async function AnalyticsPage() {
     brainPages = 0;
   }
 
-  // No seeded numbers: every tile is a real connector read, or honest pending.
+  // Every tile is a real connector read, or honest pending (value === null).
   const inputs: MetricInput[] = [
     {
       id: 'audience',
@@ -151,15 +197,44 @@ export default async function AnalyticsPage() {
       delta: audience7d != null ? Math.round(audience7d * 10) / 10 : 0,
       deltaPct: audience7d != null,
     },
+    { id: 'subscribers', label: 'Subscribers', unit: 'subs', source: 'Beehiiv', value: subs },
     { id: 'pipeline', label: 'Open Pipeline', unit: 'deals', source: 'Attio', value: pipelineDeals },
+    { id: 'stripe', label: 'Stripe Available', unit: 'usd', source: 'Stripe', value: stripeAvail },
     { id: 'agent-runs', label: 'Agent Runs', unit: 'runs', source: 'all time', value: runs.length || null, delta: runs7d },
+    { id: 'unread', label: 'Unread · all inboxes', unit: 'emails', source: 'Email', value: emailUnread },
     { id: 'brain', label: 'Brain-store Pages', unit: 'pages', source: 'GBrain', value: brainPages },
     { id: 'dictations', label: 'Dictations', unit: 'dictations', source: 'Wispr Flow', value: dictations },
-    { id: 'unread', label: 'Unread (all inboxes)', unit: 'emails', source: 'pending creds', value: null },
-    { id: 'stripe', label: 'Stripe Available', unit: 'usd', source: 'pending creds', value: null },
-    { id: 'slack', label: 'Slack Mentions', unit: 'mentions', source: 'pending creds', value: null },
   ];
   const { live, pending } = splitMetrics(inputs);
+
+  // ---- Distribution pies (all real: live snapshots + the real run log) ----
+
+  // Audience share by channel — every social platform plus the email list.
+  const audienceItems: PieItem[] = dash.platforms.map((p) => ({
+    key: p.platform,
+    label: PLATFORM_LABELS[p.platform],
+    value: p.followers,
+  }));
+  if (subs) audienceItems.push({ key: 'email', label: 'Email list', value: subs });
+  const audienceReach = totalFollowers + (subs ?? 0);
+
+  // Agent runs by agent — top handful, the long tail folded into "Other".
+  const agentName = new Map(db.agents.all().map((a) => [a.id, a.name]));
+  const byAgent = new Map<string, number>();
+  for (const r of runs) byAgent.set(r.agentId, (byAgent.get(r.agentId) ?? 0) + 1);
+  const rankedAgents = [...byAgent.entries()].sort((a, b) => b[1] - a[1]);
+  const runsByAgentItems: PieItem[] = rankedAgents
+    .slice(0, 6)
+    .map(([id, n]) => ({ key: id, label: agentName.get(id) ?? id, value: n }));
+  const tailRuns = rankedAgents.slice(6).reduce((s, [, n]) => s + n, 0);
+  if (tailRuns > 0) runsByAgentItems.push({ key: 'other', label: 'Other agents', value: tailRuns });
+
+  // Run outcomes — reliability at a glance.
+  const okRuns = runs.filter((r) => r.ok).length;
+  const outcomeItems: PieItem[] = [
+    { key: 'ok', label: 'Succeeded', value: okRuns },
+    { key: 'fail', label: 'Failed', value: runs.length - okRuns },
+  ];
 
   return (
     <div>
@@ -177,6 +252,46 @@ export default async function AnalyticsPage() {
           ))}
         </section>
       )}
+
+      {/* Distribution — share donuts across audience, agents, run outcomes */}
+      <section className="mb-6">
+        <SectionHead label="Distribution" count="share of totals" />
+        <div className="grid gap-3.5 lg:grid-cols-3">
+          {audienceReach > 0 && (
+            <PieCard
+              title="Audience share"
+              sub={`${formatFollowers(audienceReach)} reach`}
+              items={audienceItems}
+              total={audienceReach}
+              centerLabel="total reach"
+              format={formatFollowers}
+              ariaLabel="Audience share by channel"
+            />
+          )}
+          {runs.length > 0 && (
+            <PieCard
+              title="Agent runs · by agent"
+              sub={`${fmtCount(runs.length)} runs`}
+              items={runsByAgentItems}
+              total={runs.length}
+              centerLabel="agent runs"
+              format={fmtCount}
+              ariaLabel="Agent runs by agent"
+            />
+          )}
+          {runs.length > 0 && (
+            <PieCard
+              title="Run outcomes"
+              sub={`${Math.round((okRuns / runs.length) * 100)}% ok`}
+              items={outcomeItems}
+              total={runs.length}
+              centerLabel="run outcomes"
+              format={fmtCount}
+              ariaLabel="Agent run outcomes"
+            />
+          )}
+        </div>
+      </section>
 
       {/* Agent run volume (real log) + awaiting-credentials sidebar */}
       <section className="mb-6 grid gap-3.5 xl:grid-cols-3">

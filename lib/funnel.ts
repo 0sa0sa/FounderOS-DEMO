@@ -82,6 +82,47 @@ export function journeyMeta(j: FunnelJourney, now: Date): { daysSinceLastTouch: 
   return { daysSinceLastTouch: days, state };
 }
 
+/**
+ * What Alex should act on today — the funnel answering a question instead
+ * of glowing. Two queues, both capped so the rail reads at a glance:
+ *   pushNow — hot leads (likelihood ≥ 70) still in active motion; freshest
+ *             movement first, because momentum is when a push closes.
+ *   saveNow — leads visibly fading toward the archive (past DECAY_FADE_START);
+ *             highest likelihood first, because those are worth saving.
+ */
+export const ATTENTION_CAP = 4;
+export const PUSH_LIKELIHOOD = 70;
+
+export function attentionQueue(
+  journeys: FunnelJourney[],
+  now: Date,
+): { pushNow: FunnelJourney[]; saveNow: FunnelJourney[] } {
+  const metas = journeys.map((j) => ({ j, meta: journeyMeta(j, now) }));
+  const pushNow = metas
+    .filter(
+      ({ j, meta }) =>
+        meta.state === 'active' &&
+        j.status !== 'converted' &&
+        j.likelihood >= PUSH_LIKELIHOOD &&
+        // a fading lead is a save, not a push — even where stalling can't apply
+        decayFactor(meta.daysSinceLastTouch, j.status) === 0,
+    )
+    .sort((a, b) => a.meta.daysSinceLastTouch - b.meta.daysSinceLastTouch || b.j.likelihood - a.j.likelihood)
+    .slice(0, ATTENTION_CAP)
+    .map(({ j }) => j);
+  const saveNow = metas
+    .filter(
+      ({ j, meta }) =>
+        meta.state !== 'decayed' &&
+        j.status !== 'converted' &&
+        decayFactor(meta.daysSinceLastTouch, j.status) > 0,
+    )
+    .sort((a, b) => b.j.likelihood - a.j.likelihood || b.meta.daysSinceLastTouch - a.meta.daysSinceLastTouch)
+    .slice(0, ATTENTION_CAP)
+    .map(({ j }) => j);
+  return { pushNow, saveNow };
+}
+
 /** The space renders actives; the archive tab lists what has decayed. */
 export function splitFunnelJourneys(
   journeys: FunnelJourney[],
@@ -117,6 +158,11 @@ export type FunnelSpaceNode = {
   url: string | null;
   email: string | null;
   phone: string | null;
+  /** The human behind the deal — the dossier's identity block. */
+  person: string | null;
+  company: string | null;
+  role: string | null;
+  linkedin: string | null;
   touches: FunnelTouch[];
 };
 
@@ -154,6 +200,10 @@ export function funnelSpaceModel(journeys: FunnelJourney[], now: Date): FunnelSp
       url: j.url,
       email: j.email,
       phone: j.phone,
+      person: j.person,
+      company: j.company,
+      role: j.role,
+      linkedin: j.linkedin,
       touches: j.touches,
     };
   });

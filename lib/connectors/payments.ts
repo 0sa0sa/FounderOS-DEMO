@@ -20,7 +20,7 @@ export function configuredProcessors(env: Record<string, string | undefined>): P
       configured: Boolean(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET),
     },
     { id: 'fanbasis-vantage', name: 'FanBasis · Vantage', configured: Boolean(env.FANBASIS_VANTAGE_KEY) },
-    { id: 'fanbasis-aa', name: 'FanBasis · Launchpad Cohort', configured: Boolean(env.FANBASIS_LC_KEY) },
+    { id: 'fanbasis-lc', name: 'FanBasis · Launchpad Cohort', configured: Boolean(env.FANBASIS_LC_KEY) },
     { id: 'wise-1', name: 'Wise · Account 1', configured: Boolean(env.WISE_1_TOKEN) },
     { id: 'wise-2', name: 'Wise · Account 2', configured: Boolean(env.WISE_2_TOKEN) },
   ];

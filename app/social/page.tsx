@@ -7,6 +7,7 @@ import {
   audienceTotal,
   buildSocialDashboard,
   dmGrowth,
+  dmThreads,
   totalDms,
   PLATFORM_LABELS,
 } from '@/lib/social';
@@ -19,7 +20,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { Badge, SectionHead } from '@/components/terminal';
 import { formatFollowers, formatPct } from '@/components/SocialStats';
 import { SocialStatStrip } from '@/components/SocialStatStrip';
-import { AudienceConsistency } from '@/components/AudienceConsistency';
+import { AudienceConsistencyLazy } from '@/components/AudienceConsistencyLazy';
 import { AudiencePie } from '@/components/AudiencePie';
 import { PostComposer } from '@/components/PostComposer';
 
@@ -40,7 +41,7 @@ const RECENT_POSTS = [
   { tag: 'Instagram · Reel', ago: '2h', caption: '3 agents that run my business while I sleep', kind: 'views', views: 12400, likes: 1104 },
   { tag: 'TikTok · Video', ago: '6h', caption: 'POV: your operating system has a command palette', kind: 'views', views: 8100, likes: 640 },
   { tag: 'X · Thread', ago: '1d', caption: 'How I wired 7 real connectors into one OS', kind: 'impressions', views: 1200, likes: 74 },
-  { tag: 'YouTube · Long', ago: '2d', caption: 'Alex OS walkthrough — building in public #4', kind: 'views', views: 940, likes: 88 },
+  { tag: 'YouTube · Long', ago: '2d', caption: 'Founder OS walkthrough — building in public #4', kind: 'views', views: 940, likes: 88 },
   { tag: 'Instagram · Carousel', ago: '3d', caption: 'The larp-first, real-ready architecture', kind: 'reach', views: 6700, likes: 717 },
 ];
 
@@ -100,9 +101,8 @@ export default async function SocialPage() {
   const recentLive = livePosts.length > 0;
 
   const total = audienceTotal(db);
-  const tracked = dash.platforms.filter((p) => p.followers != null);
-  const top = [...tracked].sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0))[0];
   const queued = posts.filter((p) => p.status === 'queued').length;
+  const dmInbox = dmThreads(db); // Instagram DM inbox (seeded → live via ManyChat webhook)
 
   // Combined-audience series + REAL per-platform posting history (from Zernio/
   // Late) for the interactive left-column charts. `today` is computed server-side
@@ -158,10 +158,10 @@ export default async function SocialPage() {
           );
         })}
 
-        {/* Email list — same cell, Beehiiv-backed */}
+        {/* Email list — same cell, Beehiiv-backed; opens the Beehiiv dashboard */}
         <Link
-          href="/comms"
-          title={`${total > 0 && email.subscribers != null ? ((email.subscribers / total) * 100).toFixed(0) : 0}% of reach`}
+          href="/social/beehiiv"
+          title={`${total > 0 && email.subscribers != null ? ((email.subscribers / total) * 100).toFixed(0) : 0}% of reach · open Beehiiv analytics`}
           className="hoverable rounded-lg-t border border-os-border bg-os-surface px-4 py-4"
         >
           <div className="flex items-center gap-2">
@@ -189,22 +189,23 @@ export default async function SocialPage() {
         </Link>
       </div>
 
-      {/* Summary strip — Total reach + Top platform with the Audience-growth and
-          Total-DMs interactive tiles kept exactly as they were. */}
+      {/* Summary strip — Total reach + Audience-growth + Total-DMs interactive
+          tiles, and the Instagram DMs tile (click to open the inbox and reply).
+          The old "Top platform" tile was retired as a dead metric. */}
       <SocialStatStrip
         audienceTotal={total}
         audienceGrowth={audienceGrowth(db)}
         totalDms={totalDms(db)}
         dmGrowth={dmGrowth(db)}
         platformsCount={dash.platforms.length}
-        topPlatformLabel={top ? PLATFORM_LABELS[top.platform] : '—'}
-        topPlatformValue={top ? `${formatFollowers(top.followers)} followers` : 'awaiting scrape'}
+        dmThreads={dmInbox}
+        nowMs={Date.now()}
       />
 
       {/* Charts left, audience-share pie riding the right of the same card;
           Recent posts live underneath as a row of boxes. */}
       <div className="mb-6">
-        <AudienceConsistency
+        <AudienceConsistencyLazy
           audience={audiencePoints}
           postDays={postDays}
           today={today}

@@ -9,7 +9,7 @@ export async function miroStatus(): Promise<ConnectorStatus> {
       name: 'Miro',
       kind: 'creative',
       state: 'not_configured',
-      detail: 'MIRO_ACCESS_TOKEN not found in env or knowledge/.env.',
+      detail: 'MIRO_ACCESS_TOKEN not found in env or knowledge/.env.agents.',
     };
   }
   try {

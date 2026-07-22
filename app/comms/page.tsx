@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { CommsTabs } from '@/components/CommsTabs';
 import { gatherCommsFeed } from '@/lib/comms-feed';
 import { annotatePriorities } from '@/lib/comms';
+import { DEFAULT_WORK_KEYWORDS, parseWorkKeywords } from '@/lib/comms-gravity';
 import { emailStatus } from '@/lib/connectors/email';
 import { slackStatus } from '@/lib/connectors/slack';
 import { whatsappStatus } from '@/lib/connectors/whatsapp';
@@ -30,6 +31,9 @@ export default async function CommsPage() {
   ]);
   const tags = getDb().contactTags.all();
   const feed = annotatePriorities(rawFeed, tags);
+  // Generic defaults ship in code; Alex's real work brands live in
+  // COMMS_WORK_KEYWORDS (.env.local, gitignored) so they never reach the demo.
+  const workKeywords = [...DEFAULT_WORK_KEYWORDS, ...parseWorkKeywords(process.env.COMMS_WORK_KEYWORDS)];
   const calLegend = caldavAccounts().map((a) => ({ name: a.name, color: a.color }));
   const nowISO = new Date().toISOString();
   const sources = [whatsapp, email, slack, calendar];
@@ -74,7 +78,7 @@ export default async function CommsPage() {
       </section>
 
       {/* Swappable front: messaging feed (default) ↔ 7-day meetings calendar */}
-      <CommsTabs feed={feed} tags={tags} events={weekEvents} accounts={calLegend} nowISO={nowISO} />
+      <CommsTabs feed={feed} tags={tags} events={weekEvents} accounts={calLegend} nowISO={nowISO} workKeywords={workKeywords} />
 
       <p className="mt-4 rounded-md-t border border-dashed border-os-border-strong px-3 py-3 text-center font-mono text-[10.5px] text-os-dim">
         WhatsApp · 4 inboxes · Slack live · calendar via CalDAV — one operator feed

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { ACQUISITIONS, acquisitionFor, funnelRadialModel } from '@/lib/funnel-radial';
+import { ACQUISITIONS, acquisitionFor, funnelRadialModel, originOf } from '@/lib/funnel-radial';
 import type { FunnelContact, FunnelJourney, FunnelTouch } from '@/lib/schemas';
 
 const touch = (over: Partial<FunnelTouch> = {}): FunnelTouch => ({
@@ -26,6 +26,10 @@ const journey = (over: Partial<FunnelContact> = {}, touches: FunnelTouch[] = [to
   url: null,
   email: null,
   phone: null,
+  person: null,
+  company: null,
+  role: null,
+  linkedin: null,
   createdAt: '2026-06-01',
   touches,
   ...over,
@@ -145,5 +149,29 @@ describe('funnelRadialModel — outside → in', () => {
     expect(model.nodes).toEqual([]);
     expect(model.segments).toHaveLength(6);
     expect(model.segments.every((s) => s.count === 0)).toBe(true);
+  });
+});
+
+describe('originOf — where they came from, in words (AC53)', () => {
+  test('an instagram entry reads as the Instagram segment with the entry touch', () => {
+    const j = firstTouch('IG reel: 3 offers that close themselves');
+    const o = originOf(j);
+    expect(o.segment).toBe('Instagram');
+    expect(o.entry).toBe('IG reel: 3 offers that close themselves');
+    expect(o.at).toBe(j.touches[0].at);
+    expect(o.source).toBe(j.touches[0].source);
+    expect(o.channel).toBe(j.touches[0].channel);
+  });
+
+  test('an untracked CRM entry is honestly word of mouth', () => {
+    const j = journey({}, [touch({ label: 'Deal created in Attio', channel: 'crm', source: 'attio' })]);
+    expect(originOf(j).segment).toBe('Word of mouth');
+    expect(originOf(j).source).toBe('attio');
+  });
+
+  test('a journey with no touches still answers', () => {
+    const o = originOf(journey({}, []));
+    expect(o.segment).toBe('Word of mouth');
+    expect(o.entry).toBeNull();
   });
 });

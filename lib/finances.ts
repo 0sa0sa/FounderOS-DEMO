@@ -65,7 +65,7 @@ export function incomeAccounts(
     },
     account('paypal', 'PayPal', 'PayPal'),
     account('fanbasis-vantage', 'FanBasis', 'FanBasis · Vantage'),
-    account('fanbasis-aa', 'FanBasis', 'FanBasis · Launchpad Cohort'),
+    account('fanbasis-lc', 'FanBasis', 'FanBasis · Launchpad Cohort'),
     account('wise-1', 'Wise', 'Wise · Account 1'),
     account('wise-2', 'Wise', 'Wise · Account 2'),
   ];

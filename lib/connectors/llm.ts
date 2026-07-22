@@ -38,7 +38,7 @@ export interface LlmProvider {
 }
 
 const GATEWAY_KEY = 'AI_GATEWAY_API_KEY';
-const DEFAULT_MODEL = process.env.LLM_MODEL ?? 'anthropic/claude-sonnet-4-6';
+const DEFAULT_MODEL = process.env.LLM_MODEL ?? 'anthropic/claude-sonnet-5';
 
 /** process.env first (Next auto-loads .env.local), then Alex's cred files. */
 function resolveGatewayKey(): string | undefined {
@@ -71,6 +71,14 @@ export function createGatewayProvider(model: string = DEFAULT_MODEL): LlmProvide
   return {
     name: 'gateway',
     async chat(req) {
+      // Fail fast with an honest message instead of letting the SDK hang —
+      // and hydrate process.env from Alex's cred files so a key that
+      // exists outside .env.local still works.
+      const key = resolveGatewayKey();
+      if (!key) {
+        throw new Error('AI_GATEWAY_API_KEY is not set — add it to .env.local to enable agent chat.');
+      }
+      if (!process.env.AI_GATEWAY_API_KEY) process.env.AI_GATEWAY_API_KEY = key;
       const { generateText, tool, stepCountIs, gateway } = await import('ai');
       const tools = Object.fromEntries(
         (req.tools ?? []).map((t) => [

@@ -4,12 +4,12 @@ import { describe, expect, test } from 'vitest';
 import { DEFAULT_THEME, THEMES, THEME_META, THEME_STORAGE_KEY, THEME_INIT_SCRIPT, isTheme, nextTheme, resolveInitialTheme } from '@/lib/theme';
 
 describe('theme registry', () => {
-  test('five pickable themes, mono (Monolith) first as the default identity', () => {
+  test('six pickable themes, mono (Monolith) first as the default identity', () => {
     expect(DEFAULT_THEME).toBe('mono');
     expect(THEMES[0]).toBe(DEFAULT_THEME);
-    expect(THEMES).toEqual(['mono', 'dark', 'light', 'midnight', 'ember']);
+    expect(THEMES).toEqual(['mono', 'mono-light', 'dark', 'light', 'midnight', 'ember']);
     expect(new Set(THEMES).size).toBe(THEMES.length);
-    expect(THEME_STORAGE_KEY).toBe('founder-theme');
+    expect(THEME_STORAGE_KEY).toBe('alex-theme');
   });
 
   test('every theme carries picker metadata: name, blurb, 3 swatch colors', () => {
@@ -58,5 +58,10 @@ describe('theme registry', () => {
     const css = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8');
     expect(css).toMatch(/:root,\s*\n:root\[data-theme='mono'\]/);
     expect(css).not.toMatch(/:root,\s*\n:root\[data-theme='dark'\]/);
+  });
+
+  test('every registered theme has its own token block in app/globals.css', () => {
+    const css = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8');
+    for (const t of THEMES) expect(css, t).toContain(`data-theme='${t}'`);
   });
 });

@@ -1222,14 +1222,9 @@ export function KnowledgeGraph({
   const orbitalRings = useMemo(
     () => (
       <>
-        <defs>
-          <radialGradient id="kgVignette" cx="50%" cy="50%" r="65%">
-            <stop offset="0%" stopColor="var(--bg)" stopOpacity="0" />
-            <stop offset="72%" stopColor="var(--bg)" stopOpacity="0" />
-            <stop offset="100%" stopColor="var(--bg)" stopOpacity="0.5" />
-          </radialGradient>
-        </defs>
-        <rect x={0} y={0} width={W} height={H} fill="url(#kgVignette)" style={{ pointerEvents: 'none' }} />
+        {/* (No edge vignette: on light themes its var(--bg) overlay painted a
+            darker rectangular frame around a lighter center — the "faint box"
+            Alex flagged. The canvas now fills the frame cleanly.) */}
         {/* ring guides ride the same wheel as the nodes: small sunburst at
             home, huge low-hub arcs in focus — cx/cy/r are CSS-transitionable,
             so the rails visibly morph into the apparatus instead of floating
@@ -1741,13 +1736,18 @@ export function KnowledgeGraph({
         {focusTree && (
           <g key={focusTeamId ?? 'focus'} style={{ pointerEvents: 'none' }}>
             <defs>
-              <radialGradient id="kg-glow" cx="50%" cy="62%" r="62%">
-                <stop offset="0%" stopColor={focusedTeam?.color ?? 'var(--accent)'} stopOpacity={0.16} />
-                <stop offset="70%" stopColor={focusedTeam?.color ?? 'var(--accent)'} stopOpacity={0.05} />
+              {/* Soft circular dept glow. A CIRCLE (not a viewport rect): the
+                  camera pans while the glow lives in graph space, so a rect's
+                  own edges would drift into view as hard right angles. A radial
+                  fill that reaches 0 opacity exactly at the circle's rim has no
+                  corners to show, from any camera position, for every dept. */}
+              <radialGradient id="kg-glow">
+                <stop offset="0%" stopColor={focusedTeam?.color ?? 'var(--accent)'} stopOpacity={0.18} />
+                <stop offset="55%" stopColor={focusedTeam?.color ?? 'var(--accent)'} stopOpacity={0.06} />
                 <stop offset="100%" stopColor={focusedTeam?.color ?? 'var(--accent)'} stopOpacity={0} />
               </radialGradient>
             </defs>
-            <rect x={0} y={0} width={W} height={H} fill="url(#kg-glow)" className="kg-glow" />
+            <circle cx={W / 2} cy={H * 0.52} r={W * 0.56} fill="url(#kg-glow)" className="kg-glow" />
 
             {/* shared-tool "also uses" vines — faint straight lines */}
             {focusTree.extraLinks.map((l, i) => {
@@ -2262,7 +2262,7 @@ export function KnowledgeGraph({
                 onClick={() => stepDept(-1)}
                 aria-label="Turn to the previous pillar"
                 title="Previous pillar (←)"
-                className="absolute left-2 top-1/2 z-10 flex h-28 w-11 -translate-y-1/2 items-center justify-center rounded-sm-t border border-os-border bg-os-bg/70 text-os-muted backdrop-blur transition-colors hover:border-os-border-strong hover:text-os-text"
+                className="absolute left-2 top-1/2 z-10 flex h-28 w-11 -translate-y-1/2 items-center justify-center rounded-sm-t border border-transparent bg-transparent text-os-muted transition-colors hover:border-os-border hover:bg-os-bg/70 hover:text-os-text hover:backdrop-blur"
               >
                 <ChevronLeft className="h-6 w-6" />
               </button>
@@ -2270,7 +2270,7 @@ export function KnowledgeGraph({
                 onClick={() => stepDept(1)}
                 aria-label="Turn to the next pillar"
                 title="Next pillar (→)"
-                className="absolute right-2 top-1/2 z-10 flex h-28 w-11 -translate-y-1/2 items-center justify-center rounded-sm-t border border-os-border bg-os-bg/70 text-os-muted backdrop-blur transition-colors hover:border-os-border-strong hover:text-os-text"
+                className="absolute right-2 top-1/2 z-10 flex h-28 w-11 -translate-y-1/2 items-center justify-center rounded-sm-t border border-transparent bg-transparent text-os-muted transition-colors hover:border-os-border hover:bg-os-bg/70 hover:text-os-text hover:backdrop-blur"
               >
                 <ChevronRight className="h-6 w-6" />
               </button>

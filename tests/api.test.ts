@@ -9,6 +9,7 @@ import path from 'node:path';
 beforeAll(() => {
   process.env.FOUNDER_OS_DB = path.join(mkdtempSync(path.join(tmpdir(), 'founder-os-test-')), 'test.db');
   process.env.FUNNEL_PROVIDER = 'seed';
+  process.env.GBRAIN_BIN = path.join(tmpdir(), 'founder-os-no-gbrain-cli');
 });
 
 describe('API route handlers', () => {
@@ -273,5 +274,26 @@ describe('API route handlers', () => {
       if (previous === undefined) delete process.env.BRAIN_PROVIDER;
       else process.env.BRAIN_PROVIDER = previous;
     }
+  });
+});
+
+describe('GET /api/funnel/lead-message — last thread for the dossier (AC54)', () => {
+  test('400 when no name is given', async () => {
+    const { GET } = await import('@/app/api/funnel/lead-message/route');
+    const res = await GET(new Request('http://localhost/api/funnel/lead-message'));
+    expect(res.status).toBe(400);
+  });
+
+  test('answers a well-formed shape for a lead with no thread', async () => {
+    const { GET } = await import('@/app/api/funnel/lead-message/route');
+    const res = await GET(
+      new Request('http://localhost/api/funnel/lead-message?name=Nonexistent%20Lead%20XYZQ&email=nobody%40example.invalid'),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // either an honest miss or an honest "feed unavailable" — never a guess
+    expect(body).toHaveProperty('message');
+    expect(body).toHaveProperty('unavailable');
+    if (!body.unavailable) expect(body.message).toBeNull();
   });
 });

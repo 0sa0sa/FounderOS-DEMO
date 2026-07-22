@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getDb } from '@/lib/data';
 import {
+  attentionQueue,
   funnelSummary,
   journeyMeta,
   splitFunnelJourneys,
@@ -9,7 +10,7 @@ import {
   FUNNEL_STAGES,
   CHANNEL_GLYPHS,
 } from '@/lib/funnel';
-import { funnelNeuralModel } from '@/lib/funnel-neural';
+import { funnelSpaceModel } from '@/lib/funnel';
 import { funnelRadialModel } from '@/lib/funnel-radial';
 import { attioFunnelJourneys } from '@/lib/funnel-live';
 import { ghlFunnelJourneys } from '@/lib/funnel-ghl';
@@ -22,8 +23,7 @@ import { ghlStatus } from '@/lib/connectors/ghl';
 import { trakyoStatus } from '@/lib/connectors/trakyo';
 import { metaAdsStatus } from '@/lib/connectors/meta-ads';
 import { getVenture } from '@/lib/ventures';
-import { FunnelNeural } from '@/components/FunnelNeural';
-import { FunnelRadial } from '@/components/FunnelRadial';
+import { FunnelRadialLazy, FunnelSpaceLazy } from '@/components/FunnelGraphsLazy';
 import { Badge, SectionHead } from '@/components/terminal';
 import {
   FunnelStageSchema,
@@ -128,6 +128,49 @@ function ContactActions({ journey }: { journey: FunnelJourney }) {
   );
 }
 
+/** One attention row — clicking it pins that lead's dossier in the canvas. */
+function AttentionRow({
+  journey,
+  now,
+  href,
+}: {
+  journey: FunnelJourney;
+  now: Date;
+  href: string;
+}) {
+  const meta = journeyMeta(journey, now);
+  const decay = decayFactor(meta.daysSinceLastTouch, journey.status);
+  const stageLabel = FUNNEL_STAGES.find((s) => s.id === journey.status)?.label ?? journey.status;
+  return (
+    <Link
+      href={href}
+      className="group flex items-baseline gap-2 border-t border-os-border px-2.5 py-1.5 transition-colors hover:bg-os-surface2"
+    >
+      <span className="min-w-0 flex-1 truncate text-[12px] font-semibold group-hover:text-os-accent">
+        {journey.person ?? journey.name}
+      </span>
+      {journey.company && (
+        <span className="hidden max-w-[120px] truncate text-[10.5px] text-os-dim sm:inline">{journey.company}</span>
+      )}
+      <span className="shrink-0 font-mono text-[9.5px] uppercase tracking-wide text-os-dim">{stageLabel}</span>
+      <span
+        className="shrink-0 font-mono text-[10px]"
+        style={
+          decay > 0
+            ? { color: `color-mix(in oklab, var(--err) ${Math.round(Math.sqrt(decay) * 85)}%, var(--text-2))` }
+            : { color: 'var(--text-3)' }
+        }
+      >
+        {meta.daysSinceLastTouch}d
+      </span>
+      <span className="shrink-0 font-mono text-[10px] text-os-muted">{journey.likelihood}%</span>
+      {(journey.amountUsd ?? 0) > 0 && (
+        <span className="shrink-0 font-mono text-[10px] text-os-muted">{usd(journey.amountUsd ?? 0)}</span>
+      )}
+    </Link>
+  );
+}
+
 const agoDays = (ts: string, now: Date): string => {
   const d = Math.max(0, Math.floor((now.getTime() - Date.parse(ts)) / 86_400_000));
   return d === 0 ? 'today' : `${d}d ago`;
@@ -165,7 +208,14 @@ function JourneyTableRows({
               style={{ background: ventureColor(journey.venture) }}
               title={getVenture(journey.venture)?.label}
             />
-            <span className="truncate text-[12.5px] font-semibold">{journey.name}</span>
+            <span className="min-w-0">
+              <span className="block truncate text-[12.5px] font-semibold" title={journey.name}>
+                {journey.person ?? journey.name}
+              </span>
+              {journey.company && (
+                <span className="block truncate text-[10px] text-os-dim">{journey.company}</span>
+              )}
+            </span>
           </span>
         </td>
         <td className="px-3 py-2.5 font-mono text-[10.5px] uppercase tracking-wide">
@@ -234,7 +284,7 @@ function JourneyTableRows({
 export default async function FunnelPage({
   searchParams,
 }: {
-  searchParams?: { venture?: string; view?: string; stage?: string; layout?: string };
+  searchParams?: { venture?: string; view?: string; stage?: string; layout?: string; lead?: string };
 }) {
   const parsed = FunnelVentureSchema.safeParse(searchParams?.venture);
   const venture = parsed.success ? parsed.data : undefined;
@@ -249,12 +299,14 @@ export default async function FunnelPage({
     w: 'live' | 'archive',
     s: FunnelStage | undefined = stage,
     l: 'flow' | 'radial' = layout,
+    leadId?: string,
   ) => {
     const params = new URLSearchParams();
     if (v) params.set('venture', v);
     if (w === 'archive') params.set('view', 'archive');
     if (s) params.set('stage', s);
     if (l === 'radial') params.set('layout', 'radial');
+    if (leadId) params.set('lead', leadId);
     const qs = params.toString();
     return qs ? `/funnel?${qs}` : '/funnel';
   };
@@ -279,7 +331,10 @@ export default async function FunnelPage({
   const { active: journeys, archived } = splitFunnelJourneys(allJourneys, now);
   const summary = funnelSummary(journeys);
   const radial = layout === 'radial' ? funnelRadialModel(journeys, now) : null;
-  const neural = layout === 'flow' ? funnelNeuralModel(journeys, now) : null;
+  const spaceNodes = layout === 'flow' ? funnelSpaceModel(journeys, now) : null;
+  // ?lead= (attention-rail clicks) pins that lead's dossier in the canvas
+  const lead = journeys.some((j) => j.id === searchParams?.lead) ? searchParams?.lead : undefined;
+  const attention = attentionQueue(journeys, now);
 
   // Segment select: the table narrows to one stage; with a bounded row set we
   // can afford the live comms lookup (last message per lead, honest on miss).
@@ -353,10 +408,10 @@ export default async function FunnelPage({
         <span className="ml-auto flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wide">
           <Link
             href={href(venture, 'live', stage, 'flow')}
-            title="The pipeline as a neural network, left → right"
+            title="Open space left → right — every lead orbits the stage it's in now"
             className={layout === 'flow' && view === 'live' ? 'text-os-accent' : 'text-os-dim hover:text-os-muted'}
           >
-            network
+            flow
           </Link>
           <span className="text-os-dim">·</span>
           <Link
@@ -446,12 +501,57 @@ export default async function FunnelPage({
               </table>
             )
           ) : radial ? (
-            <FunnelRadial model={radial} />
-          ) : neural ? (
-            <FunnelNeural model={neural} />
+            <FunnelRadialLazy model={radial} initialLeadId={lead} />
+          ) : spaceNodes ? (
+            <FunnelSpaceLazy nodes={spaceNodes} summary={summary} initialLeadId={lead} />
           ) : null}
         </div>
       </section>
+
+      {/* What to act on today — the funnel answering a question. Every row
+          click pins that lead's dossier in the canvas above. */}
+      {view === 'live' && (attention.pushNow.length > 0 || attention.saveNow.length > 0) && (
+        <section className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <div className="rounded-lg-t border border-os-border bg-os-surface">
+            <div className="flex items-baseline justify-between px-2.5 py-2">
+              <span className="font-mono text-[9.5px] font-bold uppercase tracking-[0.22em] text-os-accent">
+                push now
+              </span>
+              <span className="font-mono text-[9px] uppercase tracking-wide text-os-dim">
+                hot + moving — close them
+              </span>
+            </div>
+            {attention.pushNow.length === 0 ? (
+              <p className="border-t border-os-border px-2.5 py-2 font-mono text-[10px] text-os-dim">
+                no hot leads in motion right now
+              </p>
+            ) : (
+              attention.pushNow.map((j) => (
+                <AttentionRow key={j.id} journey={j} now={now} href={href(venture, view, stage, layout, j.id)} />
+              ))
+            )}
+          </div>
+          <div className="rounded-lg-t border border-os-border bg-os-surface">
+            <div className="flex items-baseline justify-between px-2.5 py-2">
+              <span className="font-mono text-[9.5px] font-bold uppercase tracking-[0.22em] text-os-err">
+                save now
+              </span>
+              <span className="font-mono text-[9px] uppercase tracking-wide text-os-dim">
+                fading toward the archive — highest likelihood first
+              </span>
+            </div>
+            {attention.saveNow.length === 0 ? (
+              <p className="border-t border-os-border px-2.5 py-2 font-mono text-[10px] text-os-dim">
+                nothing fading — every lead is fresh
+              </p>
+            ) : (
+              attention.saveNow.map((j) => (
+                <AttentionRow key={j.id} journey={j} now={now} href={href(venture, view, stage, layout, j.id)} />
+              ))
+            )}
+          </div>
+        </section>
+      )}
 
       {/* The same clients as formatted data — pick a segment, contact them */}
       <section className="mt-8">

@@ -232,6 +232,52 @@
   --kg-tool: #ff2d3f;
 }
 
+/* Daylight — a calm, comfortable light skin (not the stark Monolith): white
+   cards lifted off a soft grey canvas, a legible grey text hierarchy, gentle
+   grey rules, and real color allowed back into the viz so charts and status
+   read clearly on white. */
+:root[data-theme='mono-light'] {
+  color-scheme: light;
+  --bg: #f5f6f8; /* soft cool-grey canvas — no white glare */
+  --bg-2: #eef0f3;
+  --surface: #ffffff; /* cards are white, lifted off the canvas */
+  --surface-2: #eceef1; /* hover fill (nav rows, list rows) */
+  --surface-3: #e2e5ea;
+  --border: #d6dae0; /* soft grey rules — clear but not harsh */
+  --border-strong: #bcc2ca; /* hover / emphasis / chips / kbd */
+  --text: #1b1e23; /* primary — near-black, soft on the eyes */
+  --text-2: #4c525b; /* muted — clearly legible mid grey */
+  --text-3: #737a84; /* dim — still readable, no wash-out */
+  /* Accent is a dark slate: active nav, primary badges, inverted fills. */
+  --accent: #1b1e23;
+  --accent-2: #363b42;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(27, 30, 35, 0.06);
+  --accent-line: rgba(27, 30, 35, 0.16);
+  /* Status stays vivid so it pops against the neutral greys. */
+  --ok: #17924e;
+  --warn: #b7791f;
+  --err: #d92d20;
+  --glow: 0 1px 2px rgba(27, 30, 35, 0.06); /* a whisper of lift on cards */
+  --grid: transparent;
+  --hairline: #e7e9ed; /* soft row dividers */
+  /* Viz carries real color here (not the Monolith grey rule) so graphs read. */
+  --brain-1: #6d5cf0;
+  --brain-2: #2b8fd8;
+  --brain-3: #17924e;
+  --funnel-hot: #d92d20;
+  --funnel-warm: #b7791f;
+  --funnel-cold: #6b83a3;
+  --funnel-s0: #2b8fd8;
+  --funnel-s1: #6d5cf0;
+  --funnel-s2: #b7791f;
+  --funnel-s3: #0f9c8a;
+  --funnel-s4: #17924e;
+  --funnel-s5: #c04a8a;
+  --funnel-s6: #7a828c;
+  --kg-tool: #d92d20;
+}
+
 /* Row-divider hairlines for every theme (mono sets its own above, and the
    bare :root default already carries it). */
 :root[data-theme='dark'] {
@@ -435,30 +481,41 @@ body {
 
 /* ---------------- Funnel journey space ---------------- */
 /* Fullscreen: the space becomes the whole frame — built to be filmed. */
-/* Neural flow view: one highlight band drifts across the web so it idles
-   alive without animating a thousand strands. */
-@keyframes neural-sheen-drift {
-  from { transform: translateX(-40%) skewX(-12deg); }
-  to { transform: translateX(340%) skewX(-12deg); }
+/* Flow view: paths still in motion march toward the right edge. */
+.funnel-live {
+  stroke-dasharray: 7 5;
+  animation: funnel-dash 0.9s linear infinite;
 }
-.neural-sheen {
-  animation: neural-sheen-drift 16s linear infinite;
+@keyframes funnel-dash {
+  to {
+    stroke-dashoffset: -12;
+  }
 }
-/* Plasma sparks travel each strand (dash cycle 3+46 = 49 units). */
-@keyframes neural-pulse-travel {
-  to { stroke-dashoffset: -49; }
+/* Expanding halo behind each client node — the "alive" heartbeat. */
+.funnel-halo {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: funnel-halo 2.6s ease-out infinite;
 }
-.neural-pulse {
-  animation: neural-pulse-travel linear infinite;
-}
-/* Arc flash — one random lead path flares like a Tesla filament. */
-.neural-flash {
-  filter: brightness(2.1) saturate(1.35);
+@keyframes funnel-halo {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.65;
+  }
+  70%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .neural-sheen { animation: none; opacity: 0; }
-  .neural-pulse { animation: none; opacity: 0; }
-  .neural-flash { filter: none; }
+  .funnel-live {
+    animation: none;
+  }
+  .funnel-halo {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 .funnel-space-root:fullscreen {
@@ -511,6 +568,125 @@ body {
   }
   .funnel-halo {
     opacity: 0;
+  }
+}
+
+/* ---------------- Conductor living core ----------------
+   The super-agent's mark on the dock, the /agents chat, and the /org "AI Head"
+   card. Idle it is still (machinery, not mascots — see .emblem above). While an
+   agent is being chatted with (.thinking) an accent arc orbits the ring, the
+   core breathes, and a heartbeat halo pulses out. All motion is scoped to
+   .thinking and disabled under prefers-reduced-motion. */
+.conductor-emblem {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  line-height: 0;
+}
+.conductor-emblem > * {
+  grid-area: 1 / 1;
+}
+.conductor-core {
+  position: relative;
+  z-index: 2;
+  width: calc(100% - 7px);
+  height: calc(100% - 7px);
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle at 50% 40%,
+    color-mix(in oklab, var(--text) 12%, var(--surface)),
+    var(--bg) 74%
+  );
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.conductor-ring {
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklab, var(--border-strong) 80%, transparent);
+}
+.conductor-sweep {
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  /* a comet: faint tail sharpening to a bright head, then gone */
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    color-mix(in oklab, var(--accent) 35%, transparent) 34deg,
+    var(--accent) 82deg,
+    transparent 104deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  filter: drop-shadow(0 0 3px color-mix(in oklab, var(--accent) 55%, transparent));
+  opacity: 0;
+}
+.conductor-halo {
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    color-mix(in oklab, var(--accent) 32%, transparent),
+    transparent 68%
+  );
+  opacity: 0;
+}
+.conductor-emblem.thinking .conductor-sweep {
+  opacity: 1;
+  animation: conductor-sweep 1.1s linear infinite;
+}
+.conductor-emblem.thinking .conductor-halo {
+  animation: conductor-halo 1.9s ease-out infinite;
+}
+.conductor-emblem.thinking .conductor-core {
+  animation: conductor-breathe 1.9s ease-in-out infinite;
+}
+@keyframes conductor-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes conductor-halo {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.62;
+  }
+  70%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+@keyframes conductor-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 65%, var(--border-strong));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .conductor-emblem.thinking .conductor-sweep {
+    animation: none;
+    opacity: 0.55;
+  }
+  .conductor-emblem.thinking .conductor-halo {
+    animation: none;
+    opacity: 0;
+  }
+  .conductor-emblem.thinking .conductor-core {
+    animation: none;
   }
 }
 

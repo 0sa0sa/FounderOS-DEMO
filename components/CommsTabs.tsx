@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { CalendarDays, MessageSquare } from 'lucide-react';
-import { CommsFeed } from '@/components/CommsFeed';
+import { CommsGravity } from '@/components/CommsGravity';
 import { WeekCalendar } from '@/components/WeekCalendar';
 import type { CommsItem } from '@/lib/comms';
 import type { ContactTag } from '@/lib/schemas';
@@ -19,12 +19,14 @@ export function CommsTabs({
   events,
   accounts,
   nowISO,
+  workKeywords = [],
 }: {
   feed: CommsItem[];
   tags: ContactTag[];
   events: CalEvent[];
   accounts: Account[];
   nowISO: string;
+  workKeywords?: string[];
 }) {
   const [tab, setTab] = useState<Tab>('messaging');
   const unread = feed.reduce((sum, item) => sum + (item.unread ?? 0), 0);
@@ -60,7 +62,7 @@ export function CommsTabs({
       </div>
 
       {tab === 'messaging' ? (
-        <CommsFeed initialFeed={feed} initialTags={tags} />
+        <CommsGravity initialFeed={feed} initialTags={tags} workKeywords={workKeywords} />
       ) : (
         <WeekCalendar events={events} accounts={accounts} nowISO={nowISO} />
       )}

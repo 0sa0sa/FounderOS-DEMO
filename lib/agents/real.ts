@@ -320,7 +320,7 @@ export const realAgents: RuntimeAgent[] = [
         ideas.push(`${warnings.length} doctor check(s) need attention (${warnings.map((w) => w.name).join(', ')})`);
       if (inbox && inbox.files > 3) ideas.push(`inbox/ holds ${inbox.files} unprocessed pages — file or archive them`);
       if (store.totalFiles < 50)
-        ideas.push(`only ${store.totalFiles} pages on disk vs ~900 in Supabase — run \`gbrain export\` to restore locally`);
+        ideas.push(`only ${store.totalFiles} pages on disk vs ~918 in Supabase — run \`gbrain export\` to restore locally`);
       if (ideas.length === 0) ideas.push('storage healthy — no action needed');
 
       return {

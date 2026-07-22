@@ -6,10 +6,10 @@ const NOW = new Date('2026-07-04T12:00:00Z');
 
 const PIPELINE: GhlPipeline = {
   id: 'pipe-1',
-  name: 'Demo Mentorship',
+  name: 'LC Mentorship',
   stages: [
     { id: 's-new', name: 'New Lead', position: 0 },
-    { id: 's-dm', name: 'DM Conversation', position: 1 },
+    { id: 's-dm', name: 'DM Convo', position: 1 },
   ],
 };
 

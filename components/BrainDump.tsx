@@ -8,7 +8,7 @@
  * knowledgebase is unreachable.
  */
 import { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, BrainCircuit } from 'lucide-react';
+import { Mic, MicOff, BrainCircuit, Upload } from 'lucide-react';
 import { VENTURES } from '@/lib/ventures';
 
 const FOLDERS = ['inbox', 'ideas', 'people', 'companies', 'meetings', 'projects', 'writing'];
@@ -52,6 +52,7 @@ export function BrainDump({ compact = false }: { compact?: boolean }) {
   }>({ kind: 'idle' });
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   const baseTextRef = useRef('');
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setSupported(getRecognizer() !== null);
@@ -157,12 +158,14 @@ export function BrainDump({ compact = false }: { compact?: boolean }) {
   };
 
   if (compact) {
-    // ONE untitled part (Alex): a slim capture slot riding the page
-    // header — type, talk, or drop documents straight onto it.
+    // ONE untitled part (Alex): a wide, short capture bar tucked across the
+    // top-right whitespace beside the title — type, talk, drop, or upload
+    // documents into the brain. Horizontal, not tall: the graph owns the space
+    // directly under the title.
     return (
       <div
         {...dropProps}
-        className={`w-[400px] max-w-full rounded-lg-t border bg-os-surface p-2 transition-colors ${
+        className={`w-full rounded-lg-t border bg-os-surface p-2 transition-colors ${
           dragOver ? 'border-os-accent' : 'border-os-border'
         }`}
       >
@@ -191,7 +194,21 @@ export function BrainDump({ compact = false }: { compact?: boolean }) {
             </button>
           )}
         </div>
-        <div className="flex items-center gap-2 border-t border-os-border px-1.5 pt-1.5">
+
+        {/* native file picker — a real Upload button alongside drag-and-drop */}
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          accept=".md,.markdown,.txt,.csv,.json,.yaml,.yml,.html,.htm,.log,text/*"
+          onChange={(e) => {
+            void ingestFiles([...(e.target.files ?? [])]);
+            e.currentTarget.value = '';
+          }}
+          className="hidden"
+        />
+
+        <div className="mt-1.5 flex items-center gap-1.5 border-t border-os-border px-1.5 pt-1.5">
           <span className="min-w-0 flex-1 truncate font-mono text-[9.5px] text-os-dim">
             {status.kind === 'saving'
               ? 'saving…'
@@ -199,8 +216,16 @@ export function BrainDump({ compact = false }: { compact?: boolean }) {
                 ? `✓ ${status.embedded ? 'embedded' : 'saved'} · ${status.slug ?? status.detail}`
                 : status.kind === 'error'
                   ? `✗ ${status.detail}`
-                  : 'text · voice · drag documents'}
+                  : 'text · voice · drag or upload'}
           </span>
+          <button
+            onClick={() => fileRef.current?.click()}
+            title="Choose documents to upload"
+            className="flex shrink-0 items-center gap-1 rounded-sm-t border border-os-border bg-os-surface px-2 py-0.5 font-mono text-[10px] text-os-muted transition-colors hover:border-os-border-strong hover:text-os-text"
+          >
+            <Upload className="h-3 w-3" />
+            Upload
+          </button>
           <button
             onClick={save}
             disabled={!text.trim() || status.kind === 'saving'}

@@ -1,11 +1,29 @@
 import { describe, expect, test } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { NAV_OPERATE, NAV_SYSTEM, NAV_LIBRARY, NAV_ORDER, DIGIT_VIEWS } from '@/lib/nav';
+import { NAV_OPERATE, NAV_AGENTS, NAV_INTELLIGENCE, NAV_SYSTEM, NAV_LIBRARY, NAV_ORDER, DIGIT_VIEWS } from '@/lib/nav';
 
 describe('shared nav config', () => {
-  test('NAV_ORDER is the visible top-to-bottom order: Operate → System → Variants', () => {
-    expect(NAV_ORDER).toEqual([...NAV_OPERATE, ...NAV_SYSTEM, ...NAV_LIBRARY].map((n) => n.href));
+  test('NAV_ORDER is the visible order: Operate → Agents → Intelligence → System → Variants', () => {
+    expect(NAV_ORDER).toEqual(
+      [...NAV_OPERATE, ...NAV_AGENTS, ...NAV_INTELLIGENCE, ...NAV_SYSTEM, ...NAV_LIBRARY].map((n) => n.href),
+    );
+  });
+
+  test('Agents group holds the roster and the org chart', () => {
+    expect(NAV_AGENTS.map((n) => n.href)).toEqual(['/agents', '/tasks', '/skills', '/org']);
+  });
+
+  test('Intelligence group holds G-Brain', () => {
+    expect(NAV_INTELLIGENCE.map((n) => n.href)).toEqual(['/brain']);
+  });
+
+  test('Finances lives in Operate; Agents, Org Chart, and G-Brain moved to their own groups', () => {
+    const hrefs = NAV_OPERATE.map((n) => n.href);
+    expect(hrefs).toContain('/finances');
+    expect(hrefs).not.toContain('/agents');
+    expect(hrefs).not.toContain('/org');
+    expect(hrefs).not.toContain('/brain');
   });
 
   test('digit shortcuts (1–9) map to the first 9 views in visible order', () => {
@@ -20,16 +38,17 @@ describe('shared nav config', () => {
     }
   });
 
-  test('regression: the stale mapping is fixed — Social, Content, Finances are digit-reachable', () => {
+  test('regression: Social, Content, Finances stay digit-reachable', () => {
     for (const href of ['/social', '/content', '/finances']) {
       expect(DIGIT_VIEWS, `${href} must be reachable by digit`).toContain(href);
     }
   });
 
-  test('Funnel sits between Comms and Social (Alex, 2026-07-02)', () => {
+  test('Funnel sits right after Comms and ahead of Social (Alex, 2026-07-02)', () => {
     const hrefs = NAV_OPERATE.map((n) => n.href);
     expect(hrefs.indexOf('/funnel')).toBe(hrefs.indexOf('/comms') + 1);
-    expect(hrefs.indexOf('/social')).toBe(hrefs.indexOf('/funnel') + 1);
+    // Social stays downstream of Funnel; a concurrent Workflows item may sit between them.
+    expect(hrefs.indexOf('/funnel')).toBeLessThan(hrefs.indexOf('/social'));
   });
 
   test('CommandPalette consumes the shared DIGIT_VIEWS (no private stale copy)', () => {

@@ -5,11 +5,11 @@ import { parseLiveAccounts, parseHistory, parsePostDays } from '@/lib/connectors
 // live at metadata.profileData.followersCount (NOT top-level profileData).
 const ACCOUNTS_FIXTURE = {
   accounts: [
-    { platform: 'instagram', username: 'founderos.ai', metadata: { profileData: { followersCount: 15234 } } },
-    { platform: 'tiktok', username: 'founderos.ai', metadata: { profileData: { followersCount: 7210 } } },
-    { platform: 'youtube', username: 'founderos', metadata: { profileData: { followersCount: 940 } } },
-    { platform: 'twitter', username: 'founderos', metadata: { profileData: { followersCount: 2980 } } },
-    { platform: 'linkedin', username: 'Alex Rivera', metadata: { profileData: { followersCount: 1420 } } },
+    { platform: 'instagram', username: 'founderos.ai', metadata: { profileData: { followersCount: 52936 } } },
+    { platform: 'tiktok', username: 'founderos.ai', metadata: { profileData: { followersCount: 10269 } } },
+    { platform: 'youtube', username: 'founderosai', metadata: { profileData: { followersCount: 1140 } } },
+    { platform: 'twitter', username: 'Founderosai', metadata: { profileData: { followersCount: 4178 } } },
+    { platform: 'linkedin', username: 'Alex Rivera', metadata: { profileData: { followersCount: 1880 } } },
     // facebook count via page fan_count fallback
     { platform: 'facebook', username: 'Alex Rivera', metadata: { availablePages: [{ fan_count: 42 }] } },
     // no usable count anywhere -> omitted
@@ -20,11 +20,11 @@ const ACCOUNTS_FIXTURE = {
 describe('parseLiveAccounts', () => {
   it('extracts live followers from metadata.profileData.followersCount', () => {
     const map = parseLiveAccounts(ACCOUNTS_FIXTURE);
-    expect(map.instagram?.followers).toBe(15234);
-    expect(map.tiktok?.followers).toBe(7210);
-    expect(map.youtube?.followers).toBe(940);
-    expect(map.twitter?.followers).toBe(2980);
-    expect(map.linkedin?.followers).toBe(1420);
+    expect(map.instagram?.followers).toBe(52936);
+    expect(map.tiktok?.followers).toBe(10269);
+    expect(map.youtube?.followers).toBe(1140);
+    expect(map.twitter?.followers).toBe(4178);
+    expect(map.linkedin?.followers).toBe(1880);
   });
 
   it('falls back to page fan_count when profileData has no count', () => {
@@ -55,7 +55,7 @@ const HISTORY_FIXTURE = [
     platforms: ['instagram', 'tiktok', 'youtube'],
     status: 'success',
     created: '2026-06-17T15:54:53.452Z',
-    postIds: [{ status: 'success', platform: 'instagram', postUrl: 'https://www.instagram.com/reel/XXdemoXXXXX/' }],
+    postIds: [{ status: 'success', platform: 'instagram', postUrl: 'https://www.instagram.com/reel/DEMO0000001/' }],
   },
   {
     id: 'b2',
@@ -63,7 +63,7 @@ const HISTORY_FIXTURE = [
     platforms: ['twitter'],
     status: 'success',
     created: '2026-06-15T10:00:00.000Z',
-    postIds: [{ status: 'success', platform: 'twitter', postUrl: 'https://x.com/founderos/status/1' }],
+    postIds: [{ status: 'success', platform: 'twitter', postUrl: 'https://x.com/Founderosai/status/1' }],
   },
 ];
 
@@ -73,7 +73,7 @@ describe('parseHistory', () => {
     expect(posts).toHaveLength(2);
     expect(posts[0]).toMatchObject({
       platform: 'instagram',
-      url: 'https://www.instagram.com/reel/XXdemoXXXXX/',
+      url: 'https://www.instagram.com/reel/DEMO0000001/',
       publishedAt: '2026-06-17T15:54:53.452Z',
       status: 'success',
     });

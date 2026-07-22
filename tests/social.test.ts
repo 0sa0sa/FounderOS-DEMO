@@ -46,9 +46,9 @@ describe('social repo', () => {
   test('upserting the same platform replaces instead of duplicating', () => {
     db = openDb(':memory:');
     db.social.upsertAccount({ platform: 'twitter', handle: '@old', url: null, order: 1 });
-    db.social.upsertAccount({ platform: 'twitter', handle: '@founderos', url: null, order: 1 });
+    db.social.upsertAccount({ platform: 'twitter', handle: '@Founderosai', url: null, order: 1 });
     expect(db.social.accounts()).toHaveLength(1);
-    expect(db.social.accounts()[0].handle).toBe('@founderos');
+    expect(db.social.accounts()[0].handle).toBe('@Founderosai');
   });
 
   test('returns snapshots for a platform in chronological order', () => {
@@ -111,9 +111,9 @@ describe('growthPct', () => {
   });
 
   test('allTimeGrowthPct compares earliest to latest', () => {
-    const series = [snap('tiktok', '2026-01-01', 3465), snap('tiktok', '2026-06-13', 6890)];
-    expect(allTimeGrowthPct(series)).toBeCloseTo(98.8, 1);
-    expect(allTimeGrowthPct([snap('tiktok', '2026-06-13', 6890)])).toBeNull();
+    const series = [snap('tiktok', '2026-01-01', 5000), snap('tiktok', '2026-06-13', 12000)];
+    expect(allTimeGrowthPct(series)).toBeCloseTo(140);
+    expect(allTimeGrowthPct([snap('tiktok', '2026-06-13', 12000)])).toBeNull();
   });
 });
 
@@ -123,8 +123,8 @@ describe('syncSocialSnapshots', () => {
     const recorded = syncSocialSnapshots(
       db,
       {
-        instagram: { handle: '@founderos.ai', followers: 14350 },
-        tiktok: { handle: '@founderos.ai', followers: 6890 },
+        instagram: { handle: '@founderos.ai', followers: 42000 },
+        tiktok: { handle: '@founderos.ai', followers: 12000 },
         facebook: { handle: 'Alex Rivera', followers: 100 }, // untracked platform
         linkedin: { handle: 'Alex Rivera' }, // no follower count yet
       },
@@ -132,14 +132,14 @@ describe('syncSocialSnapshots', () => {
     );
     expect(recorded).toBe(2);
     expect(db.social.snapshots('instagram')).toEqual([
-      { platform: 'instagram', capturedAt: '2026-06-13', followers: 14350, source: 'zernio-config' },
+      { platform: 'instagram', capturedAt: '2026-06-13', followers: 42000, source: 'zernio-config' },
     ]);
     expect(db.social.snapshots('linkedin')).toEqual([]);
   });
 
   test('re-syncing the same day overwrites rather than duplicates', () => {
     db = openDb(':memory:');
-    syncSocialSnapshots(db, { instagram: { followers: 14350 } }, '2026-06-13');
+    syncSocialSnapshots(db, { instagram: { followers: 42000 } }, '2026-06-13');
     syncSocialSnapshots(db, { instagram: { followers: 40100 } }, '2026-06-13');
     const rows = db.social.snapshots('instagram');
     expect(rows).toHaveLength(1);
@@ -159,24 +159,24 @@ describe('buildSocialDashboard', () => {
       'youtube',
       'linkedin',
     ]);
-    expect(dash.platforms[0].followers).toBe(14350);
+    expect(dash.platforms[0].followers).toBe(42000);
     // Every platform now carries ~90d of seeded dummy history (incl. LinkedIn)
     // so each one charts and computes growth over every window.
-    expect(dash.platforms[4].followers).toBe(1520);
+    expect(dash.platforms[4].followers).toBe(1500);
   });
 
   test('sums total followers across latest snapshots', () => {
     db = openDb(':memory:');
     seedDatabase(db);
-    expect(buildSocialDashboard(db).totalFollowers).toBe(14350 + 6890 + 2725 + 980 + 1520);
+    expect(buildSocialDashboard(db).totalFollowers).toBe(42000 + 12000 + 5200 + 900 + 1500);
   });
 
   test('computes growth from snapshot history per platform', () => {
     db = openDb(':memory:');
     seedDatabase(db);
     const ig = buildSocialDashboard(db).platforms.find((p) => p.platform === 'instagram');
-    // seeded ~90d history → latest is 14,350 and every window computes
-    expect(ig?.followers).toBe(14350);
+    // seeded ~90d history → latest is the real 40,061 and every window computes
+    expect(ig?.followers).toBe(42000);
     expect(typeof ig?.growth.d7).toBe('number');
     expect(typeof ig?.growth.d30).toBe('number');
     expect(typeof ig?.growth.d60).toBe('number');
@@ -210,17 +210,17 @@ describe('seeded social data', () => {
     seedDatabase(db);
     const byPlatform = new Map(db.social.accounts().map((a) => [a.platform, a]));
     expect(byPlatform.get('instagram')?.handle).toBe('@founderos.ai');
-    expect(byPlatform.get('twitter')?.handle).toBe('@founderos');
+    expect(byPlatform.get('twitter')?.handle).toBe('@Founderosai');
     expect(byPlatform.get('linkedin')?.handle).toBe('Alex Rivera');
   });
 
   test('seeds multi-month history ending at the real current count', () => {
     db = openDb(':memory:');
     seedDatabase(db);
-    expect(db.social.snapshots('youtube').at(-1)?.followers).toBe(980);
+    expect(db.social.snapshots('youtube').at(-1)?.followers).toBe(900);
     // LinkedIn is fully dummy (no Zernio count) but still gets a history series
     expect(db.social.snapshots('linkedin').length).toBeGreaterThan(3);
-    expect(db.social.snapshots('linkedin').at(-1)?.followers).toBe(1520);
+    expect(db.social.snapshots('linkedin').at(-1)?.followers).toBe(1500);
   });
 
   test('re-seeding does not duplicate accounts or snapshots', () => {

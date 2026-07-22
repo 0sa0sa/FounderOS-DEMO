@@ -8,12 +8,12 @@ let db: FounderDb;
 afterEach(() => db?.close());
 
 describe('PERSONAS seed data', () => {
-  test('ten distinct personas, each valid against the schema', () => {
-    expect(PERSONAS).toHaveLength(10);
+  test('eleven distinct personas, each valid against the schema', () => {
+    expect(PERSONAS).toHaveLength(11);
     const ids = new Set(PERSONAS.map((p) => p.id));
-    expect(ids.size).toBe(10);
+    expect(ids.size).toBe(11);
     const names = new Set(PERSONAS.map((p) => p.name));
-    expect(names.size).toBe(10);
+    expect(names.size).toBe(11);
     for (const p of PERSONAS) {
       expect(() => PersonaSchema.parse(p)).not.toThrow();
     }
@@ -30,18 +30,18 @@ describe('PERSONAS seed data', () => {
     }
   });
 
-  test('order is sequential 1..10', () => {
-    expect(PERSONAS.map((p) => p.order)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  test('order is sequential 1..11', () => {
+    expect(PERSONAS.map((p) => p.order)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
   });
 });
 
 describe('personas repo', () => {
-  test('seedDatabase loads all ten personas, ordered, round-tripped through the repo', () => {
+  test('seedDatabase loads all eleven personas, ordered, round-tripped through the repo', () => {
     db = openDb(':memory:');
     seedDatabase(db);
     const rows = db.personas.all();
-    expect(rows).toHaveLength(10);
-    expect(rows.map((p) => p.order)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(rows).toHaveLength(11);
+    expect(rows.map((p) => p.order)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     // JSON columns survive the round-trip
     const first = rows[0];
     expect(first.pillars.length).toBe(5);

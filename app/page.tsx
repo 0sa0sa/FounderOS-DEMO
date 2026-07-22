@@ -14,8 +14,56 @@ import { groupRoadmapByQuarter } from '@/lib/roadmap';
 import { PageHeader } from '@/components/PageHeader';
 import { HomeSocialGraph } from '@/components/HomeSocialGraph';
 import { Badge, Dot, Kbd, Label, SectionHead, Spark } from '@/components/terminal';
+import { runsPerDay, inboundPerDay, stateOfWorld, type Tone } from '@/lib/pulse-history';
+import type { ConnectorStatus } from '@/lib/connectors/types';
 
 export const dynamic = 'force-dynamic';
+
+const TONE_CLASS: Record<Tone, string> = {
+  ok: 'text-os-ok',
+  warn: 'text-os-warn',
+  err: 'text-os-err',
+  accent: 'text-os-accent',
+  dim: 'text-os-dim',
+};
+
+/** Live connector map — a bar per connector, colored by real state. Honest
+    stand-in for a time series we don't store (connector uptime has no history). */
+function ConnectorBars({ connections }: { connections: ConnectorStatus[] }) {
+  const w = 72;
+  const h = 22;
+  const gap = 2;
+  const items = connections.slice(0, 16);
+  const bw = Math.max(2, (w - gap * (items.length - 1)) / Math.max(1, items.length));
+  const color = (s: string) => (s === 'connected' ? 'var(--ok)' : s === 'error' ? 'var(--err)' : 'var(--dim)');
+  const barH = (s: string) => (s === 'connected' ? h - 4 : s === 'error' ? h - 9 : 6);
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
+      {items.map((c, i) => {
+        const bh = barH(c.state);
+        return (
+          <rect key={c.id} x={(i * (bw + gap)).toFixed(1)} y={(h - bh).toFixed(1)} width={bw.toFixed(1)} height={bh} fill={color(c.state)} opacity={c.state === 'connected' ? 1 : 0.75} />
+        );
+      })}
+    </svg>
+  );
+}
+
+/** Real health meter — fills to the current score. No fabricated trend line. */
+function HealthMeter({ value }: { value: number | null }) {
+  const w = 72;
+  const h = 22;
+  const barH = 5;
+  const y = (h - barH) / 2;
+  const pct = value == null ? 0 : Math.max(0, Math.min(100, value)) / 100;
+  const color = value == null ? 'var(--dim)' : value >= 70 ? 'var(--accent)' : value >= 40 ? 'var(--warn)' : 'var(--err)';
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
+      <rect x="0" y={y} width={w} height={barH} fill="var(--border-strong)" />
+      <rect x="0" y={y} width={(w * pct).toFixed(1)} height={barH} fill={color} />
+    </svg>
+  );
+}
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -42,14 +90,14 @@ function StatTile({
   label,
   value,
   unit,
-  spark,
+  foot,
   valueClass = '',
 }: {
   href: string;
   label: string;
   value: React.ReactNode;
   unit: string;
-  spark: number[];
+  foot: React.ReactNode;
   valueClass?: string;
 }) {
   return (
@@ -65,7 +113,7 @@ function StatTile({
         {value}
         <small className="whitespace-nowrap text-xs font-normal text-os-dim">{unit}</small>
       </div>
-      <Spark data={spark} />
+      {foot}
     </Link>
   );
 }
@@ -89,6 +137,8 @@ export default async function HomePage() {
   const agents = db.agents.all();
   const departments = new Map(db.departments.all().map((d) => [d.id, d.name]));
   const recentRuns = db.agentRuns.recent(40);
+  // Wider pull just for the runs/day sparkline — 40 may not span a week.
+  const runsForSpark = db.agentRuns.recent(400);
   const lastRunByAgent = new Map<string, (typeof recentRuns)[number]>();
   for (const r of recentRuns) if (!lastRunByAgent.has(r.agentId)) lastRunByAgent.set(r.agentId, r);
 
@@ -97,6 +147,20 @@ export default async function HomePage() {
   const health = overview.doctor.healthScore;
   const inbound = inboundLast24h(feed);
   const runCount = recentRuns.length;
+  const failedRuns = recentRuns.filter((r) => !r.ok).length;
+  // Real sparkline series from actual history — no synthetic arrays.
+  const agentsSpark = runsPerDay(runsForSpark, 7);
+  const commsSpark = inboundPerDay(feed, 7);
+  const hero = stateOfWorld({
+    activeAgents,
+    totalAgents: agents.length,
+    connected,
+    totalConnectors: connections.length,
+    inbound,
+    health: health ?? null,
+    brainConnected: overview.doctor.connected,
+    failedRuns,
+  });
   const { channels, all } = audienceSeries(db);
   // Real per-platform posting from Zernio history (cross-posts counted per
   // platform), decorated with the brand palette HomeSocialGraph expects.
@@ -130,13 +194,18 @@ export default async function HomePage() {
         eyebrow="operator console"
         title={`${greeting()}, Alex`}
         caret
-        right={
-          <>
-            <Badge tone="ok">● all nominal</Badge>
-            <Kbd>⌘K</Kbd>
-          </>
-        }
+        right={<Kbd>⌘K</Kbd>}
       />
+
+      {/* Honest state-of-the-world line — what needs you, straight from live data */}
+      <div className="-mt-3 mb-[18px] flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[12px]">
+        {hero.map((s, i) => (
+          <span key={i} className="flex items-center gap-2">
+            {i > 0 && <span className="text-os-border-strong">·</span>}
+            <span className={TONE_CLASS[s.tone]}>{s.text}</span>
+          </span>
+        ))}
+      </div>
 
       {/* Pulse row */}
       <section className="mb-[18px] grid grid-cols-4 gap-3 max-[1100px]:grid-cols-2">
@@ -145,21 +214,21 @@ export default async function HomePage() {
           label="Systems"
           value={connected}
           unit={`/ ${connections.length} connected`}
-          spark={[4, 5, 5, 6, 6, Math.max(0, connected - 1), connected]}
+          foot={<ConnectorBars connections={connections} />}
         />
         <StatTile
           href="/agents"
           label="Agents live"
           value={activeAgents}
           unit={`/ ${agents.length} roster`}
-          spark={[1, 1, 2, 2, 3, Math.max(0, activeAgents - 1), activeAgents]}
+          foot={<Spark data={agentsSpark} />}
         />
         <StatTile
           href="/comms"
           label="Communications"
           value={inbound}
           unit="inbound · 24h"
-          spark={[2, 4, 3, 6, 5, Math.max(0, inbound - 1), inbound]}
+          foot={<Spark data={commsSpark} />}
         />
         <StatTile
           href="/brain"
@@ -167,7 +236,7 @@ export default async function HomePage() {
           value={health ?? '—'}
           unit={`/ 100${overview.doctor.connected ? ` · ${overview.doctor.status}` : ' · offline'}`}
           valueClass="text-os-accent"
-          spark={[82, 85, 88, 86, 89, health ?? 90, health ?? 90]}
+          foot={<HealthMeter value={health ?? null} />}
         />
       </section>
 

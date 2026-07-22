@@ -6,7 +6,7 @@
  * whole UI with no per-component work — each theme is a token block in
  * app/globals.css.
  */
-export const THEMES = ['mono', 'dark', 'light', 'midnight', 'ember'] as const;
+export const THEMES = ['mono', 'mono-light', 'dark', 'light', 'midnight', 'ember'] as const;
 export type Theme = (typeof THEMES)[number];
 
 /** What every fresh load gets until the user picks something else. */
@@ -19,9 +19,10 @@ export const THEME_META: Record<Theme, { name: string; blurb: string; swatch: [s
   midnight: { name: 'Midnight', blurb: 'deep navy, signal blue', swatch: ['#070d1f', '#5ec9f8', '#e8ecf9'] },
   ember: { name: 'Ember', blurb: 'coal dark, vault orange', swatch: ['#0c0806', '#e35c35', '#f2e9e2'] },
   mono: { name: 'Monolith', blurb: 'white on black, color = status only', swatch: ['#0a0a0a', '#f2f2f2', '#2fd36f'] },
+  'mono-light': { name: 'Daylight', blurb: 'soft grey on white, easy on the eyes', swatch: ['#f5f6f8', '#1b1e23', '#2b8fd8'] },
 };
 
-export const THEME_STORAGE_KEY = 'founder-theme';
+export const THEME_STORAGE_KEY = 'alex-theme';
 
 export function isTheme(value: unknown): value is Theme {
   return typeof value === 'string' && (THEMES as readonly string[]).includes(value);

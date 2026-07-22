@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import type { Agent, AgentRun, Department, Person, SopTask } from '@/lib/schemas';
-import type { KnowledgeGraph as KGData } from '@/lib/knowledge-graph';
+import { graphDirectory, toolSlugOf, type KnowledgeGraph as KGData, type DirectoryGroup } from '@/lib/knowledge-graph';
 import { neuralLayout, NEURAL_H, NEURAL_W, type NeuralStrand } from '@/lib/neural-layout';
 import { NeuralDetail } from '@/components/NeuralDetail';
+import { GraphDirectory } from '@/components/GraphDirectory';
 
 /**
  * The horizontal "neural network" view of the SAME knowledge graph: tools as
@@ -20,7 +21,6 @@ const NAVY_BG = '#0a1024';
 const POS_COLOR = '#5ee8a2';
 const NEG_COLOR = '#ff5f6b';
 const DOT_COLOR = '#e8ecf9';
-const ACTIVATIONS = ['ReLU', 'GELU', 'tanh', 'sigmoid', 'softmax'] as const;
 
 // idle shimmer: three strand groups breathing out of phase (same trick as the
 // vault layers — group-level animations, never per-strand)
@@ -45,6 +45,16 @@ const sparkPts = (id: string, x: number, y: number) => {
   return Array.from({ length: 5 }, (_, i) => `${x + i * 3},${y - (((h >> (i * 4)) % 7) - 3)}`).join(' ');
 };
 
+/** short kind tag for the hover readout (from the node-id prefix) */
+const hoverKind = (id: string): string => {
+  if (id.startsWith('emp:')) return 'AI agent';
+  if (id.startsWith('person:')) return 'human';
+  if (id.startsWith('task:')) return 'SOP task';
+  if (id.startsWith('tool:')) return 'tool';
+  if (id.startsWith('team:')) return 'pillar';
+  return 'memory core';
+};
+
 export function NeuralGraph({
   graph, agents = [], departments = [], people = [], tasks = [], runsByAgent = {},
 }: {
@@ -59,36 +69,22 @@ export function NeuralGraph({
   const labelById = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n.label])), [graph]);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [acts, setActs] = useState<number[]>(() => layers.map((_, i) => i % ACTIVATIONS.length));
 
-  // the hovered node's layer card morphs to show ITS values instead of the
-  // generic layer info — "the top values edit as you look at each piece"
-  const hoverLayerIndex = hoverId ? layers.findIndex((l) => l.nodeIds.includes(hoverId)) : -1;
-  const hoverSub = useMemo(() => {
-    if (!hoverId) return null;
-    if (hoverId.startsWith('emp:')) {
-      const a = agents.find((x) => `emp:${x.id}` === hoverId);
-      return a ? `${a.role || 'AI agent'} · ${a.instance} · ${a.model}` : 'AI agent';
-    }
-    if (hoverId.startsWith('person:')) {
-      const p = people.find((x) => `person:${x.id}` === hoverId);
-      return p ? `${p.role} · human` : 'human';
-    }
-    if (hoverId.startsWith('task:')) {
-      const t = tasks.find((x) => `task:${x.id}` === hoverId);
-      return t ? `SOP · ${t.steps.length} steps · ${departments.find((d) => d.id === t.departmentId)?.name ?? ''}` : 'SOP task';
-    }
-    if (hoverId.startsWith('tool:')) {
-      const label = labelById.get(hoverId) ?? '';
-      const users = graph.edges.filter((e) => e.kind === 'uses' && e.target === hoverId).length;
-      return `${label} · wired to ${users} worker${users === 1 ? '' : 's'}`;
-    }
-    if (hoverId.startsWith('team:')) {
-      const d = departments.find((x) => `team:${x.id}` === hoverId);
-      return d?.tagline || 'pillar';
-    }
-    return 'the memory core · all of Alex’s markdown';
-  }, [hoverId, agents, people, tasks, departments, graph, labelById]);
+  // the everything-index, shared with the graph view. Hover a row to spotlight
+  // its neuron (camera zoom + strand highlight) with no click; click opens its
+  // detail. Same node-id mapping the graph view uses (tools go by slug).
+  const directory = useMemo(
+    () => graphDirectory(agents, departments, people, tasks, graph),
+    [agents, departments, people, tasks, graph],
+  );
+  const nodeIdForRow = (kind: DirectoryGroup['kind'], id: string) =>
+    kind === 'tool'
+      ? graph.nodes.find((n) => n.kind === 'tool' && toolSlugOf(n.id) === id)?.id ?? null
+      : id;
+  const hoverFromDirectory = (kind: DirectoryGroup['kind'], id: string | null) =>
+    setHoverId(id ? nodeIdForRow(kind, id) : null);
+  const pickFromDirectory = (kind: DirectoryGroup['kind'], id: string) =>
+    setSelectedId(nodeIdForRow(kind, id));
 
   const incident = useMemo(() => {
     if (!hoverId) return null;
@@ -265,34 +261,41 @@ export function NeuralGraph({
         </g>
       </svg>
 
-      {/* floating layer cards — terminal panels; the hovered node's layer
-          card morphs to show that node's values live */}
-      <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-around px-6">
-        {layers.map((layer, li) => {
-          const live = li === hoverLayerIndex && hoverId;
-          return (
-            <div
-              key={layer.kind}
-              className={`pointer-events-auto max-w-[220px] rounded-sm-t border px-2.5 py-1.5 font-mono text-[9.5px] leading-relaxed backdrop-blur transition-colors ${
-                live ? 'border-[#5ee8a2]/60 bg-[#0d142e]/95' : 'border-[#2a3a6a] bg-[#0d142e]/85'
-              }`}
-            >
-              <div className="truncate font-semibold tracking-wide text-[#c7d2f2]">
-                {live ? labelById.get(hoverId!) ?? layer.name : layer.name}
-              </div>
-              <div className="truncate text-[#7d8cbd]">
-                {live ? hoverSub : `Neurons: ${layer.nodeIds.length}`}
-              </div>
-              <button
-                className="text-[#ff5f6b] transition-colors hover:text-[#ff8b93]"
-                onClick={() => setActs((a) => a.map((v, i) => (i === li ? (v + 1) % ACTIVATIONS.length : v)))}
-                title="Cycle activation"
-              >
-                Activation: {ACTIVATIONS[acts[li]]} (click)
-              </button>
-            </div>
-          );
-        })}
+      {/* stage labels — just the word for each lane; they fade back while a
+          node is hovered so the top readout reads cleanly */}
+      <div
+        className={`pointer-events-none absolute inset-x-0 top-3 flex justify-around px-6 transition-opacity duration-200 ${
+          hoverId ? 'opacity-20' : 'opacity-100'
+        }`}
+      >
+        {layers.map((layer) => (
+          <div
+            key={layer.kind}
+            className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[#c7d2f2]"
+            style={{ textShadow: '0 1px 6px #0a1024, 0 0 3px #0a1024' }}
+          >
+            {layer.name}
+          </div>
+        ))}
+      </div>
+
+      {/* hover readout — what the cursor is on, listed at the top, no click */}
+      {hoverId && (
+        <div className="pointer-events-none absolute inset-x-0 top-2.5 z-30 flex justify-center">
+          <div
+            className="flex items-baseline gap-2 font-mono"
+            style={{ textShadow: '0 1px 6px #0a1024, 0 0 3px #0a1024' }}
+          >
+            <span className="text-[13px] font-semibold text-[#e8ecf9]">{labelById.get(hoverId) ?? hoverId}</span>
+            <span className="text-[9.5px] uppercase tracking-[0.16em] text-[#7d8cbd]">{hoverKind(hoverId)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* the everything-index, same list as the graph view — hover a row to
+          spotlight its neuron without clicking, click to open its detail */}
+      <div className="absolute bottom-3 right-3 top-16 z-[6] flex w-72 max-[820px]:hidden">
+        <GraphDirectory groups={directory} onPick={pickFromDirectory} onHover={hoverFromDirectory} className="h-full" />
       </div>
 
       {/* the same detail panels as the radial view, opened by clicking a

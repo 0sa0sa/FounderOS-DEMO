@@ -9,7 +9,7 @@ export async function arcadsStatus(): Promise<ConnectorStatus> {
       name: 'Arcads (UGC Ads)',
       kind: 'creative',
       state: 'not_configured',
-      detail: 'ARCADS_BASIC_AUTH not found in env or ~/Projects/arcads/.env.',
+      detail: 'ARCADS_BASIC_AUTH not found in env or ~/Projects/arcads-agent-skills/.env.',
     };
   }
   try {

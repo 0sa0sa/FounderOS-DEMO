@@ -777,5 +777,86 @@ export const PERSONAS: Persona[] = [
     ],
     "brainUse": "Every agent reads one shared member memory — each person's join date, tier, engagement history, last login, and save/win-back attempts — so saves, onboarding, and event nudges are personal instead of generic blasts.",
     "signaturePlay": "Churn Sentinel flags a member who hasn't logged in for 14 days and skipped two live calls, pulls their history from G-Brain, then fires a personalized win-back from Win-Back Agent and re-invites them to the next event via RSVP Wrangler — catching the lapse weeks before the renewal date instead of eating the cancel."
+  },
+  {
+    "id": "persona-law-firm",
+    "order": 11,
+    "name": "Boutique Law Firm OS",
+    "archetype": "Managing Attorney",
+    "tagline": "Every matter moved, every hour captured, every deadline safe.",
+    "summary": "A solo or small-firm managing attorney running a full caseload across intake, matter management, billing, and compliance. This OS variant turns a stack of open files into a watched docket: every deadline calculated, every billable minute captured, every trust dollar accounted for, and every client kept in the loop so nothing slips and no matter goes stale.",
+    "accent": "#b8860b",
+    "northStar": "Collected realization rate (billed hours that actually get paid) at zero missed deadlines",
+    "pillars": [
+      {
+        "name": "Intake & Conflicts",
+        "focus": "Screen inquiries, clear conflicts, and sign engagements",
+        "agents": [
+          "Intake Screener",
+          "Conflict Checker",
+          "Engagement Drafter",
+          "Retainer Collector"
+        ]
+      },
+      {
+        "name": "Matter Management",
+        "focus": "Every open matter's tasks, deadlines, and court dates on rails",
+        "agents": [
+          "Matter Pilot",
+          "Docket Sentinel",
+          "Task Router",
+          "Limitations Watch"
+        ]
+      },
+      {
+        "name": "Documents & Drafting",
+        "focus": "Draft, assemble, and review documents from templates and precedent",
+        "agents": [
+          "Draft Assembler",
+          "Clause Librarian",
+          "Redline Reviewer",
+          "e-Filing Bot"
+        ]
+      },
+      {
+        "name": "Billing & Trust",
+        "focus": "Capture time, bill on cadence, and keep trust accounting clean",
+        "agents": [
+          "Time Capturer",
+          "Invoice Runner",
+          "Trust Ledger Guard",
+          "Collections Chaser"
+        ]
+      },
+      {
+        "name": "Compliance & Client Care",
+        "focus": "Statutory deadlines, ethics compliance, and client communication",
+        "agents": [
+          "Deadline Guardian",
+          "CLE Tracker",
+          "Client Update Bot",
+          "Review Harvester"
+        ]
+      }
+    ],
+    "connectors": [
+      "Clio (practice management)",
+      "LawPay",
+      "NetDocuments",
+      "Lexis+ / Westlaw",
+      "Microsoft 365 (Outlook)",
+      "DocuSign",
+      "Court e-Filing (PACER / state)",
+      "QuickBooks Online"
+    ],
+    "metrics": [
+      "Realization rate (billed vs collected)",
+      "Billable hours captured per attorney",
+      "Matters opened vs closed",
+      "Days to invoice (WIP aging)",
+      "Deadline / limitations compliance (missed = 0)"
+    ],
+    "brainUse": "One shared G-Brain holds every matter's facts, precedent, prior filings, client history, and firm playbooks, so any agent drafts from the firm's own work product and never re-researches settled ground.",
+    "signaturePlay": "A new inquiry hits the system: Conflict Checker clears it against the client and matter graph in G-Brain, Engagement Drafter generates the retainer and fee agreement in the firm's language, Retainer Collector takes the deposit through LawPay into the trust account, and Docket Sentinel opens the matter with every statutory deadline pre-calculated from the jurisdiction's rules, so the attorney reviews and signs instead of building the file from scratch."
   }
 ];

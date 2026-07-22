@@ -6,9 +6,9 @@ let db: FounderDb;
 afterEach(() => db?.close());
 
 const LIVE = {
-  instagram: { handle: '@founderos.ai', followers: 15234 },
-  tiktok: { handle: '@founderos.ai', followers: 7210 },
-  youtube: { handle: '@founderos', followers: 940 },
+  instagram: { handle: '@founderos.ai', followers: 52936 },
+  tiktok: { handle: '@founderos.ai', followers: 10269 },
+  youtube: { handle: '@founderosai', followers: 1140 },
   facebook: { handle: 'Alex Rivera', followers: 42 }, // untracked -> skipped
 };
 
@@ -18,9 +18,9 @@ describe('syncFromZernioLive', () => {
     const recorded = await syncFromZernioLive(db, { today: '2026-06-19', source: async () => LIVE });
     expect(recorded).toBe(3); // facebook is not a tracked platform
     expect(db.social.snapshots('instagram')).toEqual([
-      { platform: 'instagram', capturedAt: '2026-06-19', followers: 15234, source: 'zernio-config' },
+      { platform: 'instagram', capturedAt: '2026-06-19', followers: 52936, source: 'zernio-config' },
     ]);
-    expect(db.social.snapshots('youtube')[0].followers).toBe(940);
+    expect(db.social.snapshots('youtube')[0].followers).toBe(1140);
   });
 
   it('falls back to the static config when the live API yields nothing', async () => {
@@ -28,10 +28,10 @@ describe('syncFromZernioLive', () => {
     const recorded = await syncFromZernioLive(db, {
       today: '2026-06-19',
       source: async () => ({}),
-      fallback: () => ({ twitter: { followers: 2980 } }),
+      fallback: () => ({ twitter: { followers: 4178 } }),
     });
     expect(recorded).toBe(1);
-    expect(db.social.snapshots('twitter')[0].followers).toBe(2980);
+    expect(db.social.snapshots('twitter')[0].followers).toBe(4178);
   });
 
   it('falls back when the live API throws', async () => {
@@ -41,9 +41,9 @@ describe('syncFromZernioLive', () => {
       source: async () => {
         throw new Error('network down');
       },
-      fallback: () => ({ linkedin: { followers: 1420 } }),
+      fallback: () => ({ linkedin: { followers: 1880 } }),
     });
     expect(recorded).toBe(1);
-    expect(db.social.snapshots('linkedin')[0].followers).toBe(1420);
+    expect(db.social.snapshots('linkedin')[0].followers).toBe(1880);
   });
 });

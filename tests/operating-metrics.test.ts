@@ -5,7 +5,7 @@ const inputs: MetricInput[] = [
   { id: 'audience', label: 'Audience', unit: 'followers', source: 'Zernio', value: 55989, delta: 3.6, deltaPct: true },
   { id: 'pipeline', label: 'Open Pipeline', unit: 'deals', source: 'Attio', value: 14, delta: 2 },
   { id: 'agent-runs', label: 'Agent Runs', unit: 'runs', source: 'all time', value: 7, delta: 7 },
-  { id: 'brain', label: 'Brain-store Pages', unit: 'pages', source: 'GBrain', value: 900 },
+  { id: 'brain', label: 'Brain-store Pages', unit: 'pages', source: 'GBrain', value: 918 },
   { id: 'dictations', label: 'Dictations', unit: 'dictations', source: 'Wispr Flow', value: null },
   { id: 'unread', label: 'Unread (all inboxes)', unit: 'emails', source: 'pending creds', value: null },
   { id: 'stripe', label: 'Stripe Available', unit: 'usd', source: 'pending creds', value: 0 },

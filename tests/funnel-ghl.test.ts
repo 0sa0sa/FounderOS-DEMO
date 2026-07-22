@@ -6,13 +6,13 @@ const NOW = new Date('2026-07-02T12:00:00Z');
 
 const PIPELINE: GhlPipeline = {
   id: 'pipe-1',
-  name: 'Demo Mentorship',
+  name: 'LC Mentorship',
   stages: [
     { id: 's-new', name: 'New Lead', position: 0 },
-    { id: 's-dm', name: 'DM Conversation', position: 1 },
-    { id: 's-vsl', name: 'Watched Training', position: 2 },
+    { id: 's-dm', name: 'DM Convo', position: 1 },
+    { id: 's-vsl', name: 'Watched VSL', position: 2 },
     { id: 's-book', name: 'Call Booked', position: 3 },
-    { id: 's-show', name: 'Call Attended', position: 4 },
+    { id: 's-show', name: 'Showed Up', position: 4 },
   ],
 };
 
@@ -57,12 +57,12 @@ describe('mapGhlOpportunities', () => {
       opp({
         id: 'o1',
         contactId: 'CUeK123',
-        contact: { name: 'Jordan Blake', email: 'jordan.blake@example.com', phone: '+15550100333' },
+        contact: { name: 'Jordan Blake', email: 'jordan.blake@example.com', phone: '+15550100199' },
       }),
     ], NOW, 'loc_abc');
     const j = journeys[0];
     expect(j.email).toBe('jordan.blake@example.com');
-    expect(j.phone).toBe('+15550100333');
+    expect(j.phone).toBe('+15550100199');
     expect(j.url).toBe('https://app.gohighlevel.com/v2/location/loc_abc/contacts/detail/CUeK123');
   });
 
@@ -90,12 +90,12 @@ describe('mapGhlOpportunities', () => {
   test('nurture-named stages map to the nurtured hub regardless of pipeline position', () => {
     const pipeline: GhlPipeline = {
       id: 'pipe-1',
-      name: 'Demo Pipeline',
+      name: 'Main Pipeline',
       stages: [
-        { id: 's-a', name: 'Intro Meetings' },
-        { id: 's-b', name: 'Intro Call' },
-        { id: 's-n', name: 'Nurture Window' }, // late position, but semantically nurture
-        { id: 's-z', name: 'Client Onboarded' },
+        { id: 's-a', name: 'Webinar Meetings' },
+        { id: 's-b', name: '30 Minute - voice call' },
+        { id: 's-n', name: 'Nurture 2 Weeks>' }, // late position, but semantically nurture
+        { id: 's-z', name: 'Student Onboarded' },
       ],
     };
     const { journeys } = mapGhlOpportunities([pipeline], [

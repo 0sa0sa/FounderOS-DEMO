@@ -1,12 +1,18 @@
 node_modules/
 .next/
-.next-fast/
+.next-*/
 data/*.db
 data/*.db-*
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store
 .worktrees/
+.playwright-mcp/
+claude code images/
+dir-sidebar.jpeg
+
+# Firecrawl scratch (scraped API docs, tokens) — never commit.
+.firecrawl/
 
 # Secrets — never commit real credentials. Only .env.example is tracked.
 .env

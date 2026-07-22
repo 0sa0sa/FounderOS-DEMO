@@ -1,5 +1,5 @@
 /**
- * The agent emblem — the real Vantage mark (public/founder-emblem.png,
+ * The agent emblem — the real Vantage mark (public/vantage-emblem.png,
  * processed from ~/vantage/"VANTAGE LOGO": background keyed out, cropped).
  *
  * The PNG is used as a CSS mask over a solid color, so `shade` tints the exact
@@ -29,8 +29,8 @@ export function SparkIcon({
         backgroundColor: shade,
         // color drives the hover drop-shadow glow (.emblem in globals.css)
         color: shade,
-        WebkitMaskImage: 'url(/founder-emblem.png)',
-        maskImage: 'url(/founder-emblem.png)',
+        WebkitMaskImage: 'url(/vantage-emblem.png)',
+        maskImage: 'url(/vantage-emblem.png)',
         WebkitMaskRepeat: 'no-repeat',
         maskRepeat: 'no-repeat',
         WebkitMaskPosition: 'center',

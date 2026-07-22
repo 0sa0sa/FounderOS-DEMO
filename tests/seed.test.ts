@@ -19,6 +19,10 @@ describe('seedDatabase', () => {
     expect(db.metrics.all().length).toBeGreaterThanOrEqual(4);
     expect(db.domains.all().length).toBeGreaterThanOrEqual(8);
     expect(db.phases.all().length).toBeGreaterThanOrEqual(3);
+    expect(db.workflows.all().length).toBeGreaterThanOrEqual(2);
+    expect(db.workflows.all().every((w) => w.steps.length >= 3)).toBe(true);
+    expect(db.skills.all().length).toBeGreaterThanOrEqual(8);
+    expect(db.agentTasks.all().length).toBeGreaterThanOrEqual(8);
   });
 
   test('every agent belongs to an existing department', () => {
@@ -172,12 +176,13 @@ describe('seedDatabase', () => {
     expect(db.tools.all().length).toBe(counts.tools);
   });
 
-  test('email list reflects the seeded demo Beehiiv account, not the retired ~30k larp', () => {
+  test('email list reflects the real Beehiiv account, not the retired ~30k larp', () => {
     db = openDb(':memory:');
     seedDatabase(db);
     const snaps = db.emailList.snapshots();
     expect(snaps.length).toBeGreaterThan(0);
-    // Latest count is the demo newsletter subscriber count.
+    // Latest count is the real "Alex's Newsletter" active subscriber count
+    // (pulled from Beehiiv 2026-07-07). Bumped deliberately as the list grows.
     expect(db.emailList.latest()?.subscribers).toBe(2141);
     // Honest shape: the list only exists from its 2026-05-28 bulk import — no
     // pre-import history, and nowhere near the old dummy ~30k ramp.

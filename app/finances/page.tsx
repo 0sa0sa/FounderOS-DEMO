@@ -63,7 +63,7 @@ export default async function FinancesPage() {
     fanbasisMonthToDateIncome(process.env.FANBASIS_VANTAGE_KEY).catch(() => null),
   ]);
   const liveIncomeUsd: Record<string, number> = {};
-  if (fbAa != null) liveIncomeUsd['fanbasis-aa'] = fbAa;
+  if (fbAa != null) liveIncomeUsd['fanbasis-lc'] = fbAa;
   if (fbMer != null) liveIncomeUsd['fanbasis-vantage'] = fbMer;
   const accounts = incomeAccounts({ connected: stripeLive, mtdUsd }, configuredMap, liveIncomeUsd);
   // Outgoing Wise transfers — null (no Wise key) hides the section entirely.

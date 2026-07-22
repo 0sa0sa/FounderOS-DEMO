@@ -2,7 +2,7 @@
   "name": "founder-os",
   "version": "1.0.0",
   "private": true,
-  "description": "FOUNDER OS \u2014 personal operating system and AI agent command center",
+  "description": "FOUNDER OS — personal operating system and AI agent command center",
   "scripts": {
     "dev": "next dev -p 4100",
     "build": "next build",
@@ -27,6 +27,7 @@
     "nodemailer": "^9.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "simple-icons": "^16.27.0",
     "stripe": "^22.2.0",
     "zod": "^3.23.8"
   },

@@ -33,7 +33,23 @@ export type AttioDeal = {
     timeline?: unknown[];
     timeline_2?: unknown[];
     project_description?: unknown[];
+    associated_people?: { target_record_id?: string }[];
+    associated_company?: { target_record_id?: string }[];
   };
+};
+
+/** The person behind a deal, joined from the people/companies objects. */
+export type AttioPersonSlice = {
+  person: string | null;
+  email: string | null;
+  phone: string | null;
+  role: string | null;
+  linkedin: string | null;
+};
+
+export type AttioContacts = {
+  people: Map<string, AttioPersonSlice>;
+  companies: Map<string, string>;
 };
 
 /** Alex's 10 Attio stages → the 5 canonical hubs. Closed Lost leaves the funnel. */
@@ -80,10 +96,12 @@ export function icpScore(deal: AttioDeal): number {
 
 const day = (iso: string | undefined, fallback: string): string => (iso ?? fallback).slice(0, 10);
 
-/** Pure mapper: raw Attio deals → validated journeys + honest exclusion counts. */
+/** Pure mapper: raw Attio deals → validated journeys + honest exclusion counts.
+ * `contacts` (when the join ran) fills who the lead actually is. */
 export function mapAttioDeals(
   deals: AttioDeal[],
   now: Date,
+  contacts?: AttioContacts,
 ): { journeys: FunnelJourney[]; closedLost: number; total: number } {
   let closedLost = 0;
   const journeys: FunnelJourney[] = [];
@@ -125,6 +143,11 @@ export function mapAttioDeals(
       at: i === hubIdx ? stageSince : createdAt,
     }));
 
+    const personRef = deal.values.associated_people?.[0]?.target_record_id;
+    const companyRef = deal.values.associated_company?.[0]?.target_record_id;
+    const who = (personRef && contacts?.people.get(personRef)) || null;
+    const companyName = (companyRef && contacts?.companies.get(companyRef)) || null;
+
     try {
       journeys.push(
         FunnelJourneySchema.parse({
@@ -137,6 +160,12 @@ export function mapAttioDeals(
           relationship: score >= 70 ? 'hot' : score >= 40 ? 'warm' : 'cold',
           likelihood: score,
           url: deal.web_url ?? null,
+          email: who?.email ?? null,
+          phone: who?.phone ?? null,
+          person: who?.person ?? null,
+          company: companyName,
+          role: who?.role ?? null,
+          linkedin: who?.linkedin ?? null,
           createdAt,
           touches,
         }),
@@ -150,6 +179,74 @@ export function mapAttioDeals(
   journeys.sort((a, b) => (b.touches.at(-1)?.at ?? '').localeCompare(a.touches.at(-1)?.at ?? ''));
   void now;
   return { journeys, closedLost, total: deals.length };
+}
+
+/** Raw slices of the people/companies query responses (only what we read). */
+type AttioPersonRecord = {
+  id: { record_id: string };
+  values: {
+    name?: { full_name?: string }[];
+    email_addresses?: { email_address?: string }[];
+    phone_numbers?: { phone_number?: string }[];
+    job_title?: { value?: string }[];
+    linkedin?: { value?: string }[];
+  };
+};
+type AttioCompanyRecord = { id: { record_id: string }; values: { name?: { value?: string }[] } };
+
+async function queryByIds<T extends { id: { record_id: string } }>(
+  object: 'people' | 'companies',
+  ids: string[],
+  key: string,
+): Promise<T[]> {
+  const out: T[] = [];
+  // record_id $in is verified live — Attio 400s ("too many constraint
+  // values") past 100 ids per filter, so chunk exactly there
+  for (let i = 0; i < ids.length; i += 100) {
+    const res = await fetch(`https://api.attio.com/v2/objects/${object}/records/query`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filter: { record_id: { $in: ids.slice(i, i + 100) } }, limit: 500 }),
+      cache: 'no-store',
+    });
+    if (!res.ok) return out; // partial join beats no join — stay honest, never throw
+    const body = (await res.json()) as { data?: T[] };
+    out.push(...(body.data ?? []));
+  }
+  return out;
+}
+
+/**
+ * Join the humans onto the pipeline: batch-fetch every person/company the
+ * deals reference (2 requests per 200 ids). Null on any failure — the mapper
+ * then renders deals without contact info rather than guessing.
+ */
+export async function fetchAttioContacts(deals: AttioDeal[], key: string): Promise<AttioContacts | null> {
+  try {
+    const personIds = [...new Set(deals.map((d) => d.values.associated_people?.[0]?.target_record_id).filter((x): x is string => !!x))];
+    const companyIds = [...new Set(deals.map((d) => d.values.associated_company?.[0]?.target_record_id).filter((x): x is string => !!x))];
+    const [people, companies] = await Promise.all([
+      queryByIds<AttioPersonRecord>('people', personIds, key),
+      queryByIds<AttioCompanyRecord>('companies', companyIds, key),
+    ]);
+    return {
+      people: new Map(
+        people.map((p) => [
+          p.id.record_id,
+          {
+            person: p.values.name?.[0]?.full_name ?? null,
+            email: p.values.email_addresses?.[0]?.email_address ?? null,
+            phone: p.values.phone_numbers?.[0]?.phone_number ?? null,
+            role: p.values.job_title?.[0]?.value ?? null,
+            linkedin: p.values.linkedin?.[0]?.value ?? null,
+          },
+        ]),
+      ),
+      companies: new Map(companies.map((c) => [c.id.record_id, c.values.name?.[0]?.value ?? ''])),
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -178,7 +275,8 @@ export async function attioFunnelJourneys(
       deals.push(...page);
       if (page.length < 500) break;
     }
-    return mapAttioDeals(deals, now);
+    const contacts = await fetchAttioContacts(deals, key);
+    return mapAttioDeals(deals, now, contacts ?? undefined);
   } catch {
     return null;
   }

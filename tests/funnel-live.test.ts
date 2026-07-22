@@ -21,7 +21,7 @@ const rawDeal = (over: {
   created_at: over.createdAt ?? '2026-04-09T01:23:52.868Z',
   web_url: `https://app.attio.com/vantage/deals/record/${over.id ?? 'rec-1'}`,
   values: {
-    name: [{ value: over.name ?? 'Drew Halpern' }],
+    name: [{ value: over.name ?? 'Reese Calder' }],
     stage: [{ status: { title: over.stage ?? 'Contacted' }, active_from: over.stageSince ?? '2026-06-05T00:00:00Z' }],
     value: [{ currency_value: over.value ?? 0 }],
     budget_range: over.budget ? [{ value: over.budget }] : [],
@@ -62,7 +62,7 @@ describe('mapAttioDeals', () => {
 
   test('maps a deal to a valid journey: touches carry created + stage-since dates', () => {
     const { journeys } = mapAttioDeals([
-      rawDeal({ id: 'rec-a', name: 'Drew Halpern', stage: 'Contacted', createdAt: '2026-04-09T01:23:52Z', stageSince: '2026-06-05T09:00:00Z' }),
+      rawDeal({ id: 'rec-a', name: 'Reese Calder', stage: 'Contacted', createdAt: '2026-04-09T01:23:52Z', stageSince: '2026-06-05T09:00:00Z' }),
     ], NOW);
     expect(journeys).toHaveLength(1);
     const j = FunnelJourneySchema.parse(journeys[0]);
@@ -105,13 +105,13 @@ describe('mapAttioDeals', () => {
 
 describe('classifyVenture', () => {
   test('person-name deals read as Launchpad Cohort mentorship leads', () => {
-    expect(classifyVenture('Drew Halpern')).toBe('launchpad-cohort');
+    expect(classifyVenture('Reese Calder')).toBe('launchpad-cohort');
     expect(classifyVenture('Tayla Nguyen')).toBe('launchpad-cohort');
-    expect(classifyVenture('CASEY EXAMPLE')).toBe('launchpad-cohort');
+    expect(classifyVenture('NAYL AHMADULIN')).toBe('launchpad-cohort');
   });
 
   test('company-flavored deals read as Vantage client builds', () => {
-    expect(classifyVenture('NovaTech Solutions')).toBe('vantage');
+    expect(classifyVenture('Orbit Labs')).toBe('vantage');
     expect(classifyVenture('Harbor Dental')).toBe('vantage');
     expect(classifyVenture('Lin & Co Accounting')).toBe('vantage');
     expect(classifyVenture('Fields Roofing LLC')).toBe('vantage');
@@ -119,10 +119,66 @@ describe('classifyVenture', () => {
 
   test('mapAttioDeals stamps the heuristic venture on every journey', () => {
     const { journeys } = mapAttioDeals([
-      rawDeal({ id: 'rec-p', name: 'Drew Halpern', stage: 'Contacted' }),
-      rawDeal({ id: 'rec-c', name: 'NovaTech Solutions', stage: 'Contacted' }),
+      rawDeal({ id: 'rec-p', name: 'Reese Calder', stage: 'Contacted' }),
+      rawDeal({ id: 'rec-c', name: 'Orbit Labs', stage: 'Contacted' }),
     ], NOW);
     expect(journeys.find((j) => j.id === 'attio-rec-p')?.venture).toBe('launchpad-cohort');
     expect(journeys.find((j) => j.id === 'attio-rec-c')?.venture).toBe('vantage');
+  });
+});
+
+describe('Attio contact join — the person behind the deal (AC52)', () => {
+  const dealWithRefs = (): AttioDeal => ({
+    ...rawDeal({ id: 'rec-9', name: 'Calder Holdings automation' }),
+    values: {
+      ...rawDeal({ id: 'rec-9' }).values,
+      associated_people: [{ target_record_id: 'person-1' }],
+      associated_company: [{ target_record_id: 'company-1' }],
+    },
+  });
+  const contacts = {
+    people: new Map([
+      [
+        'person-1',
+        {
+          person: 'Reese Calder',
+          email: 'reese@example.com',
+          phone: '+15550100442',
+          role: 'Executive leadership (C-level)',
+          linkedin: 'https://linkedin.com/in/reesecalder-example',
+        },
+      ],
+    ]),
+    companies: new Map([['company-1', 'Calder Holdings LLC']]),
+  };
+
+  test('joined contacts fill person, email, phone, role, company, linkedin', () => {
+    const { journeys } = mapAttioDeals([dealWithRefs()], NOW, contacts);
+    expect(journeys).toHaveLength(1);
+    const j = journeys[0];
+    expect(j.person).toBe('Reese Calder');
+    expect(j.email).toBe('reese@example.com');
+    expect(j.phone).toBe('+15550100442');
+    expect(j.role).toBe('Executive leadership (C-level)');
+    expect(j.company).toBe('Calder Holdings LLC');
+    expect(j.linkedin).toBe('https://linkedin.com/in/reesecalder-example');
+    expect(FunnelJourneySchema.parse(j)).toBeTruthy();
+  });
+
+  test('a deal whose refs are missing from the index stays honestly null', () => {
+    const orphan: AttioDeal = {
+      ...rawDeal({ id: 'rec-10' }),
+      values: { ...rawDeal({ id: 'rec-10' }).values, associated_people: [{ target_record_id: 'nobody' }] },
+    };
+    const { journeys } = mapAttioDeals([orphan], NOW, contacts);
+    expect(journeys[0].person).toBeNull();
+    expect(journeys[0].email).toBeNull();
+    expect(journeys[0].company).toBeNull();
+  });
+
+  test('calling without contacts keeps the pre-join behavior (back-compat)', () => {
+    const { journeys } = mapAttioDeals([dealWithRefs()], NOW);
+    expect(journeys[0].person).toBeNull();
+    expect(journeys[0].email).toBeNull();
   });
 });

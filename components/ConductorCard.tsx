@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { Agent, Broadcast } from '@/lib/schemas';
-import { SparkIcon } from '@/components/SparkIcon';
+import { ConductorEmblem } from '@/components/ConductorEmblem';
 
 /**
  * The "AI Head" card from the FounderOS board: the Conductor super-agent
@@ -51,11 +51,9 @@ export function ConductorCard({
     <div className="hoverable group w-[340px] rounded-2xl border border-os-border-bright bg-os-surface p-4">
       <div className="text-center text-[10px] uppercase tracking-[0.25em] text-os-dim">AI Head</div>
 
-      {/* Logo box, NEXUS-style */}
+      {/* Living core — breathes and orbits while the Conductor is broadcasting */}
       <div className="mt-2 flex justify-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-xl border-2 border-os-text bg-os-bg">
-          <SparkIcon size={34} shade="var(--text)" />
-        </div>
+        <ConductorEmblem size={62} thinking={sending} />
       </div>
       <div className="mt-2 text-center text-sm font-bold tracking-[0.2em]">CONDUCTOR</div>
       <div className="text-center text-[10px] text-os-dim">

@@ -6,13 +6,13 @@
  * degrade to the route name. Never blocks a chat: resolvers that fail return
  * a plain title line.
  */
-import { NAV_LIBRARY, NAV_OPERATE, NAV_SYSTEM } from '@/lib/nav';
+import { NAV_AGENTS, NAV_INTELLIGENCE, NAV_LIBRARY, NAV_OPERATE, NAV_SYSTEM } from '@/lib/nav';
 import { getDb } from '@/lib/data';
 import { funnelSummary, journeyMeta, splitFunnelJourneys, FUNNEL_STAGES } from '@/lib/funnel';
 import { attioFunnelJourneys } from '@/lib/funnel-live';
 import { ghlFunnelJourneys } from '@/lib/funnel-ghl';
 
-const ALL_NAV = [...NAV_OPERATE, ...NAV_SYSTEM, ...NAV_LIBRARY];
+const ALL_NAV = [...NAV_OPERATE, ...NAV_AGENTS, ...NAV_INTELLIGENCE, ...NAV_SYSTEM, ...NAV_LIBRARY];
 
 export function screenTitleFor(path: string): string {
   const clean = path.split('?')[0] || '/';
@@ -112,8 +112,8 @@ export async function screenContextFor(path: string): Promise<{ title: string; c
     if (clean.startsWith('/roadmap')) {
       return { title, context: `${title}: ${db.roadmap.all().length} roadmap items across quarters.` };
     }
-    return { title, context: `${title} view of Alex OS.` };
+    return { title, context: `${title} view of Founder OS.` };
   } catch {
-    return { title, context: `${title} view of Alex OS.` };
+    return { title, context: `${title} view of Founder OS.` };
   }
 }

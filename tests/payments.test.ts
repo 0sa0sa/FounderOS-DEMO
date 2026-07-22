@@ -19,7 +19,7 @@ describe('configuredProcessors', () => {
       'stripe',
       'paypal',
       'fanbasis-vantage',
-      'fanbasis-aa',
+      'fanbasis-lc',
       'wise-1',
       'wise-2',
     ]);
@@ -27,7 +27,7 @@ describe('configuredProcessors', () => {
     expect(byId.stripe).toBe(true);
     expect(byId.paypal).toBe(true);
     expect(byId['fanbasis-vantage']).toBe(true);
-    expect(byId['fanbasis-aa']).toBe(false);
+    expect(byId['fanbasis-lc']).toBe(false);
     expect(byId['wise-1']).toBe(true);
     expect(byId['wise-2']).toBe(false);
   });

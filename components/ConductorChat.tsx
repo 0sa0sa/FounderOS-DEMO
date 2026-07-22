@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Send } from 'lucide-react';
-import { SparkIcon } from '@/components/SparkIcon';
+import { ConductorEmblem } from '@/components/ConductorEmblem';
 
 /**
  * Conductor chat for the /agents page. Unlike the broadcast ConductorCard on
@@ -44,9 +44,7 @@ export function ConductorChat({ agentNames }: { agentNames: Record<string, strin
   return (
     <div className="rounded-lg-t border border-os-border-strong bg-os-surface p-4">
       <div className="flex items-center gap-2.5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md border border-os-text bg-os-bg">
-          <SparkIcon size={18} shade="var(--text)" />
-        </div>
+        <ConductorEmblem size={38} thinking={sending} />
         <div className="min-w-0">
           <div className="text-[13px] font-bold tracking-[0.12em]">CONDUCTOR</div>
           <div className="font-mono text-[10px] text-os-dim">
@@ -87,12 +85,12 @@ export function ConductorChat({ agentNames }: { agentNames: Record<string, strin
           onKeyDown={(e) => e.key === 'Enter' && send()}
           placeholder="Talk to Conductor — it routes you to the right agent"
           disabled={sending}
-          className="min-w-0 flex-1 rounded-sm-t border border-os-border bg-os-bg px-3 py-1.5 text-xs text-os-text placeholder:text-os-dim focus:border-os-border-strong focus:outline-none"
+          className="min-w-0 flex-1 rounded-full border border-os-border bg-os-bg px-3 py-1.5 text-xs text-os-text placeholder:text-os-dim focus:border-os-border-strong focus:outline-none"
         />
         <button
           onClick={send}
           disabled={sending || !input.trim()}
-          className="flex shrink-0 items-center gap-1.5 rounded-sm-t border border-os-border-strong bg-os-surface2 px-3 py-1.5 text-xs font-semibold text-os-text transition-opacity hover:border-os-dim disabled:opacity-40"
+          className="flex shrink-0 items-center gap-1.5 rounded-full border border-os-border-strong bg-os-surface2 px-3 py-1.5 text-xs font-semibold text-os-text transition-opacity hover:border-os-dim disabled:opacity-40"
         >
           {sending ? <span className="font-mono text-[11px]">routing…</span> : <Send className="h-3 w-3" />}
         </button>

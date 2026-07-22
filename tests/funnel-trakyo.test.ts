@@ -14,6 +14,10 @@ const journey = (id: string, name: string): FunnelJourney => ({
   url: null,
   email: null,
   phone: null,
+  person: null,
+  company: null,
+  role: null,
+  linkedin: null,
   createdAt: '2026-06-01',
   touches: [
     {
@@ -30,9 +34,9 @@ const journey = (id: string, name: string): FunnelJourney => ({
 describe('mergeTrakyoTouches', () => {
   test('swaps the synthetic first touch for the real attributed content touch', () => {
     const events: TrakyoEvent[] = [
-      { lead: 'Drew Halpern', label: 'IG reel: "3 AI offers that close themselves"', channel: 'organic', at: '2026-05-28' },
+      { lead: 'Reese Calder', label: 'IG reel: "3 AI offers that close themselves"', channel: 'organic', at: '2026-05-28' },
     ];
-    const [merged] = mergeTrakyoTouches([journey('j1', 'Drew Halpern')], events);
+    const [merged] = mergeTrakyoTouches([journey('j1', 'Reese Calder')], events);
     expect(merged.touches[0].source).toBe('trakyo');
     expect(merged.touches[0].channel).toBe('organic');
     expect(merged.touches[0].label).toContain('IG reel');
@@ -42,15 +46,15 @@ describe('mergeTrakyoTouches', () => {
   });
 
   test('matching is name-normalized (case + spacing)', () => {
-    const events: TrakyoEvent[] = [{ lead: '  drew HALPERN ', label: 'YT long-form', channel: 'organic', at: '2026-05-20' }];
-    const [merged] = mergeTrakyoTouches([journey('j1', 'Drew Halpern')], events);
+    const events: TrakyoEvent[] = [{ lead: '  reese CALDER ', label: 'YT long-form', channel: 'organic', at: '2026-05-20' }];
+    const [merged] = mergeTrakyoTouches([journey('j1', 'Reese Calder')], events);
     expect(merged.touches[0].source).toBe('trakyo');
   });
 
   test('journeys without an attributed event pass through unchanged', () => {
     const original = journey('j2', 'Someone Else');
     const [merged] = mergeTrakyoTouches([original], [
-      { lead: 'Drew Halpern', label: 'x', channel: 'organic', at: '2026-05-28' },
+      { lead: 'Reese Calder', label: 'x', channel: 'organic', at: '2026-05-28' },
     ]);
     expect(merged).toEqual(original);
   });

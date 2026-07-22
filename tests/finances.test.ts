@@ -18,7 +18,7 @@ describe('incomeAccounts', () => {
       'stripe',
       'paypal',
       'fanbasis-vantage',
-      'fanbasis-aa',
+      'fanbasis-lc',
       'wise-1',
       'wise-2',
     ]);
@@ -50,7 +50,7 @@ describe('incomeAccounts', () => {
     expect(paypal.live).toBe(false); // but no real pull implemented yet
     expect(paypal.income).toBeNull(); // so never a faked number
     expect(accounts.find((a) => a.id === 'wise-1')!.configured).toBe(true);
-    expect(accounts.find((a) => a.id === 'fanbasis-aa')!.configured).toBe(false);
+    expect(accounts.find((a) => a.id === 'fanbasis-lc')!.configured).toBe(false);
   });
 
   test('stripe.configured defaults to its connection state', () => {
@@ -59,8 +59,8 @@ describe('incomeAccounts', () => {
   });
 
   test('a non-Stripe account goes live with real income when passed in liveIncomeUsd', () => {
-    const accounts = incomeAccounts({ connected: false, mtdUsd: null }, { 'fanbasis-aa': true }, { 'fanbasis-aa': 3400 });
-    const aa = accounts.find((a) => a.id === 'fanbasis-aa')!;
+    const accounts = incomeAccounts({ connected: false, mtdUsd: null }, { 'fanbasis-lc': true }, { 'fanbasis-lc': 3400 });
+    const aa = accounts.find((a) => a.id === 'fanbasis-lc')!;
     expect(aa.configured).toBe(true);
     expect(aa.live).toBe(true);
     expect(aa.income).toBe(3400);

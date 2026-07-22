@@ -6,11 +6,11 @@ import {
   type BankSummary,
 } from '@/lib/bank-statements';
 
-// Mirrors the Acme Holdings "Business Checking Account Statement" pdftotext shape:
+// Mirrors the IntelliReach "Business Checking Account Statement" pdftotext shape:
 // label on one line, the $value at the start of the next.
 const SAMPLE = [
   'Business Checking Account Statement',
-  'Acme Holdings LLC',
+  'IntelliReach LLC',
   'Statement Date: 04/30/2026',
   'Account Ending: *7001 Account Name: General Operations',
   'Statement Summary',

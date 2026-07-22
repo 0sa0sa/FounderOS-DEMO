@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { NAV_OPERATE, NAV_SYSTEM, NAV_LIBRARY, type NavItem } from '@/lib/nav';
+import { NAV_OPERATE, NAV_AGENTS, NAV_INTELLIGENCE, NAV_SYSTEM, NAV_LIBRARY, type NavItem } from '@/lib/nav';
 import { OsMark } from '@/components/OsMark';
 
 function NavGroup({ title, items, pathname }: { title: string; items: NavItem[]; pathname: string }) {
@@ -67,6 +67,8 @@ export function Sidebar() {
       </div>
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2.5 pb-2">
         <NavGroup title="Operate" items={NAV_OPERATE} pathname={pathname} />
+        <NavGroup title="Agents" items={NAV_AGENTS} pathname={pathname} />
+        <NavGroup title="Intelligence" items={NAV_INTELLIGENCE} pathname={pathname} />
         <NavGroup title="System" items={NAV_SYSTEM} pathname={pathname} />
         <NavGroup title="Variants" items={NAV_LIBRARY} pathname={pathname} />
       </nav>

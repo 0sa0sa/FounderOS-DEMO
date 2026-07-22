@@ -5,6 +5,7 @@ import { paymentsStatus } from '@/lib/connectors/payments';
 import { notionStatus } from '@/lib/connectors/notion';
 import { zernioStatus } from '@/lib/connectors/zernio';
 import { beehiivStatus } from '@/lib/connectors/beehiiv';
+import { manychatStatus } from '@/lib/connectors/manychat';
 import { attioStatus } from '@/lib/connectors/attio';
 import { arcadsStatus } from '@/lib/connectors/arcads';
 import { miroStatus } from '@/lib/connectors/miro';
@@ -18,6 +19,7 @@ import { trakyoStatus } from '@/lib/connectors/trakyo';
 import { metaAdsStatus } from '@/lib/connectors/meta-ads';
 import { ghlStatus } from '@/lib/connectors/ghl';
 import { getBrainProvider } from '@/lib/brain';
+import { resolveManychatKey, runtimeEnv } from '@/lib/creds';
 import type { ConnectorStatus } from '@/lib/connectors/types';
 
 async function brainConnectorStatus(): Promise<ConnectorStatus> {
@@ -37,7 +39,18 @@ const CHECKS: [string, ConnectorStatus['kind'], () => Promise<ConnectorStatus>][
   ['llm', 'orchestration', llmStatus],
   ['whatsapp', 'social', whatsappStatus],
   ['zernio', 'social', zernioStatus],
-  ['beehiiv', 'social', beehiivStatus],
+  ['beehiiv', 'social', () => beehiivStatus(runtimeEnv())],
+  [
+    'manychat',
+    'social',
+    () => {
+      // Alex's real key rides in ~/.config/mcp.json (the manychat MCP
+      // registration), same reuse pattern as Attio — .env.local still wins.
+      const env = runtimeEnv();
+      if (!env.MANYCHAT_API_KEY) env.MANYCHAT_API_KEY = resolveManychatKey();
+      return manychatStatus(env);
+    },
+  ],
   ['attio', 'crm', attioStatus],
   ['webinarjam', 'crm', webinarjamStatus],
   ['trakyo', 'crm', trakyoStatus],
@@ -48,11 +61,11 @@ const CHECKS: [string, ConnectorStatus['kind'], () => Promise<ConnectorStatus>][
   ['local-stack', 'local', localStackStatus],
   ['obsidian', 'knowledge', obsidianStatus],
   ['miro', 'creative', miroStatus],
-  ['email', 'email', emailStatus],
+  ['email', 'email', () => emailStatus(runtimeEnv())],
   ['calendar', 'calendar', calendarStatus],
-  ['slack', 'slack', slackStatus],
-  ['payments', 'payments', paymentsStatus],
-  ['notion', 'notion', notionStatus],
+  ['slack', 'slack', () => slackStatus(runtimeEnv())],
+  ['payments', 'payments', () => paymentsStatus(runtimeEnv())],
+  ['notion', 'notion', () => notionStatus(runtimeEnv())],
 ];
 
 export async function allConnectorStatuses(): Promise<ConnectorStatus[]> {

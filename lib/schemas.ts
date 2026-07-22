@@ -40,6 +40,38 @@ export const ToolSchema = z.object({
   description: z.string(),
 });
 
+// Integration = one entry in the connections marketplace: a brand, a one-line
+// blurb, a category, and an optional link to a real connector that drives its
+// live "connected" state. Logo comes from `slug` via lib/brand-logos.
+export const INTEGRATION_CATEGORIES = [
+  'Productivity',
+  'Communication',
+  'CRM & Sales',
+  'Developer',
+  'Scheduling',
+  'Finance',
+  'Marketing',
+  'Storage',
+  'Knowledge',
+  'AI & Automation',
+  'Creative',
+] as const;
+export const IntegrationCategorySchema = z.enum(INTEGRATION_CATEGORIES);
+export const IntegrationSchema = z.object({
+  slug: z.string().min(1),
+  name: z.string().min(1),
+  tagline: z.string().min(1),
+  category: IntegrationCategorySchema,
+  // when set, the catalog entry reflects this real connector's live state
+  connectorId: z.string().min(1).optional(),
+  popular: z.boolean().optional(),
+  // env var names the connect flow may write to .env.local for this entry.
+  // Omitted = a generic <SLUG>_API_KEY; [] = not key-connectable (guidance only).
+  envKeys: z.array(z.string().regex(/^[A-Z][A-Z0-9_]*$/)).optional(),
+});
+export type Integration = z.infer<typeof IntegrationSchema>;
+export type IntegrationCategory = z.infer<typeof IntegrationCategorySchema>;
+
 export const RoadmapItemSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -307,6 +339,23 @@ export const SocialDmSnapshotSchema = z.object({
   source: z.string().min(1),
 });
 
+// A single DM message in the /social inbox (Instagram-first). Seeded dummy
+// until the ManyChat webhook (POST /api/webhooks/manychat) feeds it live —
+// ManyChat's API cannot list DMs, so the inbound stream is push, not poll.
+export const DmDirectionSchema = z.enum(['in', 'out']); // in = from the subscriber, out = from us
+export const SocialDmMessageSchema = z.object({
+  id: z.string().min(1),
+  platform: SocialPlatformSchema,
+  subscriberId: z.string().min(1),
+  name: z.string().min(1),
+  handle: z.string().nullable(),
+  text: z.string(),
+  direction: DmDirectionSchema,
+  tag: z.string().nullable(),
+  ts: z.string().min(1),
+  source: z.string().min(1),
+});
+
 export const SocialPostStatusSchema = z.enum(['queued', 'published', 'failed']);
 
 // A post composed on the Social tab and queued for the Zernio-publishing agent.
@@ -351,6 +400,53 @@ export const SopTaskSchema = z.object({
   assigneeId: z.string().min(1),
 });
 
+// ── Workflows — the machine, mapped as a chain of owned process steps ───────
+// Each step is owned by a human or an agent, costs weekly hours, may leak money
+// (a bottleneck), and may carry a live/suggested automation that recovers it.
+export const WorkflowOwnerKindSchema = z.enum(['human', 'agent']);
+export const WorkflowAutomationStateSchema = z.enum(['live', 'suggested']);
+
+export const WorkflowStepSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  ownerKind: WorkflowOwnerKindSchema,
+  owner: z.string().min(1), // "Alex · Founder" / "SDR Agent"
+  hoursPerWeek: z.number().nonnegative(),
+  tools: z.array(z.string()), // tool slugs (same namespace as agents)
+  edgeLabel: z.string().nullable(), // label on the edge INTO the next step
+  leakUsd: z.number().nonnegative().nullable(), // $/mo bleeding here when it's a bottleneck
+  automation: z
+    .object({
+      title: z.string().min(1),
+      state: WorkflowAutomationStateSchema,
+      recoveredUsd: z.number().nonnegative(), // $/mo the automation carries
+    })
+    .nullable(),
+});
+
+export const WorkflowSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1), // "Vantage sales machine"
+  subtitle: z.string(),
+  revenueUsd: z.number().nonnegative(), // $/mo this machine drives (context for leaks)
+  order: z.number().int(),
+  steps: z.array(WorkflowStepSchema),
+});
+
+// ── Skills — the agent workforce's capability library ───────────────────────
+export const SkillStatusSchema = z.enum(['live', 'learning', 'planned']);
+export const SkillSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  category: z.string().min(1), // "Sales", "Content", "Ops"…
+  description: z.string(),
+  ownerAgentId: z.string().nullable(), // the agent that primarily wields it
+  status: SkillStatusSchema,
+  tools: z.array(z.string()),
+  markdown: z.string(), // the skill's SKILL.md doc, viewable from the card
+  order: z.number().int(),
+});
+
 // ── Client roster — one row per client, whatever the source ─────────────────
 // The Clients pillar serves Attio deals when the connector is live and the
 // seeded funnel otherwise; `source` keeps the card honest about which.
@@ -389,9 +485,16 @@ export const FunnelContactSchema = z.object({
   likelihood: z.number().int().min(0).max(100),
   /** Deep link to the source record (Attio web_url / GHL contact page). */
   url: z.string().nullable().default(null),
-  /** Contact channels for outreach — GHL carries both; Attio resolution TBD. */
+  /** Contact channels for outreach — GHL carries both; Attio joins them from
+   * the deal's associated person record (fetchAttioContacts). */
   email: z.string().nullable().default(null),
   phone: z.string().nullable().default(null),
+  /** The human behind the deal — joined from the CRM person/company records
+   * so the dossier says WHO this is, not just the deal title. */
+  person: z.string().nullable().default(null),
+  company: z.string().nullable().default(null),
+  role: z.string().nullable().default(null),
+  linkedin: z.string().nullable().default(null),
   createdAt: z.string().min(1),
 });
 
@@ -461,6 +564,8 @@ export type SocialPlatformDetail = z.infer<typeof SocialPlatformDetailSchema>;
 export type EmailListSnapshot = z.infer<typeof EmailListSnapshotSchema>;
 export type SocialDm = z.infer<typeof SocialDmSchema>;
 export type SocialDmSnapshot = z.infer<typeof SocialDmSnapshotSchema>;
+export type SocialDmMessage = z.infer<typeof SocialDmMessageSchema>;
+export type DmDirection = z.infer<typeof DmDirectionSchema>;
 export type SocialPostStatus = z.infer<typeof SocialPostStatusSchema>;
 export type SocialPost = z.infer<typeof SocialPostSchema>;
 export type AgentTask = z.infer<typeof AgentTaskSchema>;
@@ -481,3 +586,9 @@ export type FunnelTouch = z.infer<typeof FunnelTouchSchema>;
 export type FunnelJourney = z.infer<typeof FunnelJourneySchema>;
 export type FunnelStageRow = z.infer<typeof FunnelStageRowSchema>;
 export type FunnelSummary = z.infer<typeof FunnelSummarySchema>;
+export type WorkflowOwnerKind = z.infer<typeof WorkflowOwnerKindSchema>;
+export type WorkflowAutomationState = z.infer<typeof WorkflowAutomationStateSchema>;
+export type WorkflowStep = z.infer<typeof WorkflowStepSchema>;
+export type Workflow = z.infer<typeof WorkflowSchema>;
+export type SkillStatus = z.infer<typeof SkillStatusSchema>;
+export type Skill = z.infer<typeof SkillSchema>;

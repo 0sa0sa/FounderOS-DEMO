@@ -220,7 +220,7 @@ export async function zernioStatus(): Promise<ConnectorStatus> {
       name: 'Zernio (Social)',
       kind: 'social',
       state: 'not_configured',
-      detail: 'ZERNIO_API_KEY not found in env, ~/.config/social/.env, or knowledge/.env.',
+      detail: 'ZERNIO_API_KEY not found in env, ~/.config/social/.env, or knowledge/.env.agents.',
     };
   }
   const followers = accounts.reduce((sum, [, a]) => sum + (a.followers ?? 0), 0);

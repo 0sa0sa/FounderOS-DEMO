@@ -32,6 +32,7 @@ const ROUTES: RouteEntry[] = [
   { route: 'contacts/tags', load: () => import('@/app/api/contacts/tags/route'), url: 'http://localhost/api/contacts/tags' },
   { route: 'departments', load: () => import('@/app/api/departments/route'), url: 'http://localhost/api/departments' },
   { route: 'funnel', load: () => import('@/app/api/funnel/route'), url: 'http://localhost/api/funnel' },
+  { route: 'funnel/lead-message', load: () => import('@/app/api/funnel/lead-message/route'), url: 'http://localhost/api/funnel/lead-message?name=Smoke%20Test%20Lead' },
   { route: 'keys', load: () => import('@/app/api/keys/route'), url: 'http://localhost/api/keys' },
   { route: 'life/map', load: () => import('@/app/api/life/map/route'), url: 'http://localhost/api/life/map' },
   { route: 'metrics', load: () => import('@/app/api/metrics/route'), url: 'http://localhost/api/metrics' },
@@ -44,6 +45,7 @@ const ROUTES: RouteEntry[] = [
   { route: 'social/sync', load: () => import('@/app/api/social/sync/route'), url: 'http://localhost/api/social/sync' },
   { route: 'tools', load: () => import('@/app/api/tools/route'), url: 'http://localhost/api/tools' },
   { route: 'ventures', load: () => import('@/app/api/ventures/route'), url: 'http://localhost/api/ventures' },
+  { route: 'webhooks/manychat', load: () => import('@/app/api/webhooks/manychat/route'), url: 'http://localhost/api/webhooks/manychat' },
 ];
 
 function discoverGetRoutes(dir: string, base = ''): string[] {
@@ -70,7 +72,10 @@ describe('platform smoke — every GET API route answers 200 with JSON', () => {
   }, 20_000);
 
   test('the API smoke net covers every GET route under app/api (no route escapes)', () => {
-    const discovered = discoverGetRoutes(path.join(process.cwd(), 'app', 'api')).sort();
+    // skills/[slug] reads the local ~/.claude/skills dir at runtime (404 without
+    // a slug on disk), so it is not a 200-required smoke route.
+    const IGNORE = new Set(['skills/[slug]']);
+    const discovered = discoverGetRoutes(path.join(process.cwd(), 'app', 'api')).filter((r) => !IGNORE.has(r)).sort();
     const covered = ROUTES.map((r) => r.route).sort();
     expect(covered).toEqual(discovered);
   });

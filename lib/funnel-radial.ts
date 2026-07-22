@@ -10,7 +10,10 @@
  * change needed.
  */
 import { funnelSpaceModel, type FunnelSpaceNode } from '@/lib/funnel';
-import type { FunnelJourney } from '@/lib/schemas';
+import type { FunnelJourney, FunnelTouch } from '@/lib/schemas';
+
+/** Journeys and space nodes both qualify — classification reads touches only. */
+type HasTouches = { touches: FunnelTouch[] };
 
 export type FunnelAcquisition =
   | 'instagram'
@@ -55,12 +58,34 @@ const MATCHERS: { id: FunnelAcquisition; re: RegExp }[] = [
  * touch (label + channel). Unattributed stays word_of_mouth: the honest
  * bucket for "we didn't track this", exactly Alex's framing of referrals.
  */
-export function acquisitionFor(j: FunnelJourney): FunnelAcquisition {
+export function acquisitionFor(j: HasTouches): FunnelAcquisition {
   const entry = j.touches[0];
   if (!entry) return 'word_of_mouth';
   for (const m of MATCHERS) if (m.re.test(entry.label)) return m.id;
   if (entry.channel === 'ads') return 'instagram'; // paid traffic = the IG/FB machine
   return 'word_of_mouth';
+}
+
+/** "Where they came from" as words for the dossier card — the acquisition
+ * segment plus the actual entry touch that put them in the funnel. */
+export type FunnelOrigin = {
+  segment: string;
+  entry: string | null;
+  channel: string | null;
+  source: string | null;
+  at: string | null;
+};
+
+export function originOf(j: HasTouches): FunnelOrigin {
+  const seg = ACQUISITIONS[SEGMENT_INDEX[acquisitionFor(j)]];
+  const entry = j.touches[0] ?? null;
+  return {
+    segment: seg.label,
+    entry: entry?.label ?? null,
+    channel: entry?.channel ?? null,
+    source: entry?.source ?? null,
+    at: entry?.at ?? null,
+  };
 }
 
 /** A space node placed on the circle: rim segment + ring depth. */

@@ -10,15 +10,84 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { PanelRightOpen, Send, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Send, X } from 'lucide-react';
 import { SparkIcon } from '@/components/SparkIcon';
+import { ConductorEmblem } from '@/components/ConductorEmblem';
 
 type Turn = { id: string; role: 'user' | 'assistant'; content: string; routedTo?: string };
 type ScreenCtx = { title: string; context: string };
 
+/** Cross-component open signal — the Topbar agent icon fires this. */
+export const CONDUCTOR_OPEN_EVENT = 'conductor:open';
+
+const WIDTH_KEY = 'alex-conductor-w';
+const MIN_W = 300;
+const MAX_W = 760;
+const clampW = (w: number) => Math.min(MAX_W, Math.max(MIN_W, Math.round(w)));
+
 export function ConductorPanel() {
   const pathname = usePathname() ?? '/';
   const [open, setOpen] = useState(false);
+  // Alex controls the size: drag the left edge; the width persists
+  const [width, setWidth] = useState(380);
+  useEffect(() => {
+    try {
+      const stored = Number(localStorage.getItem(WIDTH_KEY));
+      if (Number.isFinite(stored) && stored > 0) setWidth(clampW(stored));
+    } catch {
+      /* storage unavailable — default width stands */
+    }
+  }, []);
+  const dragRef = useRef<{ startX: number; startW: number } | null>(null);
+  // live width during a drag — state updates batch, so persisting from state
+  // on pointerup can save a stale value on fast flicks
+  const widthRef = useRef(380);
+  useEffect(() => {
+    widthRef.current = width;
+  }, [width]);
+  const onHandleDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    dragRef.current = { startX: e.clientX, startW: widthRef.current };
+    // 1:1 tracking while dragging — the glide transition would lag the handle
+    document.documentElement.classList.add('conductor-dragging');
+    try {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* synthetic/stale pointer — drag still tracks via move events */
+    }
+  };
+  const onHandleMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const w = clampW(d.startW + (d.startX - e.clientX));
+    widthRef.current = w;
+    setWidth(w);
+  };
+  const onHandleUp = () => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    document.documentElement.classList.remove('conductor-dragging');
+    try {
+      localStorage.setItem(WIDTH_KEY, String(widthRef.current));
+    } catch {
+      /* fine */
+    }
+  };
+
+  // the Topbar agent icon opens the dock from anywhere
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(CONDUCTOR_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(CONDUCTOR_OPEN_EVENT, onOpen);
+  }, []);
+
+  // the dock PUSHES the content instead of covering it: publish the width as
+  // a CSS var the layout shell reads for its right margin
+  useEffect(() => {
+    document.documentElement.style.setProperty('--conductor-w', open ? `${width}px` : '0px');
+    return () => {
+      document.documentElement.style.setProperty('--conductor-w', '0px');
+    };
+  }, [open, width]);
   const [ctx, setCtx] = useState<ScreenCtx | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState('');
@@ -81,32 +150,85 @@ export function ConductorPanel() {
     }
   }
 
+  const persistWidth = (w: number) => {
+    const next = clampW(w);
+    widthRef.current = next;
+    setWidth(next);
+    try {
+      localStorage.setItem(WIDTH_KEY, String(next));
+    } catch {
+      /* fine */
+    }
+  };
+
   return (
     <>
-      {/* right-edge expand tab */}
+      {/* corner agent — tucked away bottom-right, pops its label out on
+          hover, never in the way; click opens the dock */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          aria-label="Open Conductor"
-          title="Conductor — ask about this screen"
-          className="fixed right-0 top-1/2 z-40 -translate-y-1/2 rounded-l-md-t border border-r-0 border-os-border-strong bg-os-surface px-1.5 py-3 text-os-dim transition-colors hover:border-os-dim hover:text-os-accent"
+          aria-label="Open the Conductor agent panel"
+          title="Ask the Conductor about this screen"
+          className="group fixed bottom-5 right-5 z-40 flex items-center rounded-full border border-os-border-strong bg-os-surface/90 p-2.5 opacity-60 backdrop-blur transition-all duration-300 hover:opacity-100 hover:pr-3.5"
+          style={{ transitionTimingFunction: 'var(--ease)', boxShadow: 'none' }}
         >
-          <PanelRightOpen className="h-4 w-4" />
+          <SparkIcon size={17} shade="var(--text)" />
+          <span
+            className="max-w-0 overflow-hidden whitespace-nowrap font-mono text-[10.5px] tracking-wide text-os-muted transition-all duration-300 group-hover:ml-2 group-hover:max-w-[130px]"
+            style={{ transitionTimingFunction: 'var(--ease)' }}
+          >
+            Ask Conductor
+          </span>
         </button>
       )}
 
-      {/* the dock */}
+      {/* the dock — opened from the Topbar agent icon or the corner bubble,
+          resizable from its left edge, width remembered across sessions */}
       <aside
         aria-hidden={!open}
-        className={`fixed inset-y-0 right-0 z-50 flex w-[360px] max-w-[92vw] flex-col border-l border-os-border-strong bg-os-surface transition-transform duration-200 ${
+        className={`fixed inset-y-0 right-0 z-50 flex max-w-[92vw] flex-col border-l border-os-border-strong bg-os-surface transition-transform duration-[420ms] ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
-        style={{ transitionTimingFunction: 'var(--ease)' }}
+        style={{ transitionTimingFunction: 'var(--ease)', width }}
       >
+        {/* resize handle */}
+        <div
+          onPointerDown={onHandleDown}
+          onPointerMove={onHandleMove}
+          onPointerUp={onHandleUp}
+          title="Drag to resize"
+          className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize hover:bg-os-accent/30"
+          style={{ touchAction: 'none' }}
+        />
+
+        {/* edge arrows: ‹ widens the panel a step, › slides it away — hidden
+            while closed so they don't poke past the off-screen edge */}
+        <div
+          className={`absolute -left-3 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-1.5 transition-opacity duration-300 ${
+            open ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+        >
+          <button
+            onClick={() => persistWidth(widthRef.current + 140)}
+            disabled={width >= MAX_W}
+            aria-label="Widen the panel"
+            title="Wider"
+            className="grid h-7 w-7 place-items-center rounded-full border border-os-border-strong bg-os-surface text-os-dim shadow-sm transition-colors hover:text-os-accent disabled:opacity-30"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => setOpen(false)}
+            aria-label="Slide the panel away"
+            title="Slide away"
+            className="grid h-7 w-7 place-items-center rounded-full border border-os-border-strong bg-os-surface text-os-dim shadow-sm transition-colors hover:text-os-text"
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
         <header className="flex items-center gap-2.5 border-b border-os-border px-4 py-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-os-text bg-os-bg">
-            <SparkIcon size={15} shade="var(--text)" />
-          </div>
+          <ConductorEmblem size={32} thinking={sending} className="shrink-0" />
           <div className="min-w-0 flex-1">
             <div className="text-[12.5px] font-bold tracking-[0.12em]">CONDUCTOR</div>
             <div className="truncate font-mono text-[9.5px] uppercase tracking-wide text-os-dim">
@@ -159,7 +281,12 @@ export function ConductorPanel() {
               </div>
             ),
           )}
-          {sending && <p className="font-mono text-[10px] text-os-dim">routing…</p>}
+          {sending && (
+            <div className="flex items-center gap-2">
+              <ConductorEmblem size={18} thinking />
+              <span className="font-mono text-[10px] text-os-dim">routing…</span>
+            </div>
+          )}
           {error && <p className="font-mono text-[10px] text-os-err">⚠ {error}</p>}
         </div>
 
@@ -170,13 +297,13 @@ export function ConductorPanel() {
             onKeyDown={(e) => e.key === 'Enter' && send()}
             placeholder={`Ask about ${ctx?.title ?? 'this screen'}…`}
             disabled={sending}
-            className="min-w-0 flex-1 rounded-sm-t border border-os-border bg-os-bg px-3 py-1.5 text-xs text-os-text placeholder:text-os-dim focus:border-os-border-strong focus:outline-none"
+            className="min-w-0 flex-1 rounded-full border border-os-border bg-os-bg px-3 py-1.5 text-xs text-os-text placeholder:text-os-dim focus:border-os-border-strong focus:outline-none"
           />
           <button
             onClick={send}
             disabled={sending || !input.trim()}
             aria-label="Send"
-            className="flex shrink-0 items-center rounded-sm-t border border-os-border-strong bg-os-surface2 px-3 py-1.5 text-os-text transition-opacity hover:border-os-dim disabled:opacity-40"
+            className="flex shrink-0 items-center rounded-full border border-os-border-strong bg-os-surface2 px-3 py-1.5 text-os-text transition-opacity hover:border-os-dim disabled:opacity-40"
           >
             <Send className="h-3 w-3" />
           </button>

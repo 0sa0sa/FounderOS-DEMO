@@ -2,6 +2,7 @@ import type { FounderDb } from '@/lib/db';
 import { PERSONAS } from '@/lib/personas-seed';
 import type {
   Agent,
+  AgentTask,
   Department,
   Domain,
   EmailListSnapshot,
@@ -12,9 +13,12 @@ import type {
   Phase,
   RoadmapItem,
   SopTask,
+  Workflow,
+  Skill,
   SocialAccount,
   SocialDm,
   SocialDmSnapshot,
+  SocialDmMessage,
   SocialPost,
   SocialSnapshot,
   Tool,
@@ -705,7 +709,7 @@ const sopTasks: SopTask[] = [
     ],
   },
   {
-    id: 'sop-aa-lane', departmentId: 'dept-sales', assigneeKind: 'agent', assigneeId: 'launchpad-cohort-sales',
+    id: 'sop-lc-lane', departmentId: 'dept-sales', assigneeKind: 'agent', assigneeId: 'launchpad-cohort-sales',
     title: 'Run the Launchpad Cohort lane',
     summary: 'Webinar registrants to closed LC deals.',
     steps: [
@@ -913,13 +917,13 @@ const tools: Tool[] = [
   { id: 'tool-gbrain', name: 'G-Brain (gbrain CLI)', category: 'Knowledge', status: 'connected', color: GRAY.white, description: 'v0.41 · brain-store markdown + Supabase + ZeroEntropy embeddings. Live, health 90/100.' },
   { id: 'tool-brain-store', name: 'brain-store/', category: 'Knowledge', status: 'connected', color: GRAY.light, description: 'Local markdown knowledge base at knowledge/brain-store.' },
   { id: 'tool-zeroentropy', name: 'ZeroEntropy', category: 'Knowledge', status: 'connected', color: GRAY.mid, description: 'Vector embeddings behind gbrain hybrid search. Key in ~/.config/knowledge/config.json.' },
-  { id: 'tool-supabase', name: 'Supabase (Second Brain)', category: 'Knowledge', status: 'available', color: GRAY.mid, description: '900 pages / 10k chunks. Free tier pauses on idle — unpause from dashboard when queries fail.' },
-  { id: 'tool-obsidian', name: 'Notes Vault', category: 'Knowledge', status: 'connected', color: GRAY.light, description: '~/Documents/Notes Vault incl. 640-conversation Chat Archive. Direct filesystem access.' },
+  { id: 'tool-supabase', name: 'Supabase (Second Brain)', category: 'Knowledge', status: 'available', color: GRAY.mid, description: '918 pages / 11k chunks. Free tier pauses on idle — unpause from dashboard when queries fail.' },
+  { id: 'tool-obsidian', name: 'Notes Vault', category: 'Knowledge', status: 'connected', color: GRAY.light, description: '~/Documents/Notes Vault incl. archived-conversation Chat Archive. Direct filesystem access.' },
   { id: 'tool-notion', name: 'Notion', category: 'Knowledge', status: 'available', color: GRAY.dim, description: 'Client implemented. Set NOTION_API_KEY and share pages with the integration.' },
   // Social & growth
-  { id: 'tool-zernio', name: 'Zernio', category: 'Social', status: 'connected', color: GRAY.white, description: '6 platforms under @founderos.ai (IG 14k, TikTok 7k, X 3k…). Key at ~/.config/social/.env — live.' },
+  { id: 'tool-zernio', name: 'Zernio', category: 'Social', status: 'connected', color: GRAY.white, description: '6 platforms under @founderos.ai (IG, TikTok, X…). Key at ~/.config/social/.env — live.' },
   { id: 'tool-manychat', name: 'ManyChat', category: 'Social', status: 'available', color: GRAY.dim, description: 'DM automation. Endpoint map fully documented in shared-config; needs MANYCHAT_API_KEY.' },
-  { id: 'tool-skool', name: 'Skool (via Playwright)', category: 'Social', status: 'connected', color: GRAY.mid, description: 'launchpad-cohort-demo community, driven by the documented Playwright workflow.' },
+  { id: 'tool-skool', name: 'Skool (via Playwright)', category: 'Social', status: 'connected', color: GRAY.mid, description: 'launchpad-cohort community, driven by the documented Playwright workflow.' },
   // CRM & revenue
   { id: 'tool-attio', name: 'Attio', category: 'CRM & Revenue', status: 'connected', color: GRAY.white, description: 'Vantage + LC deals. Key reused from MCP config (read-scoped: query records, not lists).' },
   { id: 'tool-fanbasis', name: 'FanBasis', category: 'CRM & Revenue', status: 'planned', color: GRAY.light, description: 'Offer/payment/customer context for Sales, including the Vantage FanBasis lane.' },
@@ -932,9 +936,9 @@ const tools: Tool[] = [
   // Creative studio
   { id: 'tool-remotion', name: 'Remotion Pipeline', category: 'Creative', status: 'connected', color: GRAY.white, description: '~/Projects/remotion-pipeline · studio :3789 · LC + Vantage themes · 7 skills. Active Jun 10.' },
   { id: 'tool-higgsfield', name: 'Higgsfield CLI', category: 'Creative', status: 'connected', color: GRAY.light, description: 'v0.1.40, auth in keychain. generate / product-photoshoot / marketing-studio / soul-id.' },
-  { id: 'tool-arcads', name: 'Arcads', category: 'Creative', status: 'connected', color: GRAY.mid, description: 'UGC ads for Vantage (Veo/Sora/Kling). Basic auth at ~/Projects/arcads/.env.' },
+  { id: 'tool-arcads', name: 'Arcads', category: 'Creative', status: 'connected', color: GRAY.mid, description: 'UGC ads for Vantage (Veo/Sora/Kling). Basic auth at ~/Projects/arcads-agent-skills/.env.' },
   { id: 'tool-whisper', name: 'Whisper (local)', category: 'Creative', status: 'connected', color: GRAY.dim, description: 'whisper-cli + ffmpeg via brew. Local transcription, nothing leaves the machine.' },
-  { id: 'tool-miro', name: 'Miro', category: 'Creative', status: 'connected', color: GRAY.mid, description: 'REST API with token from knowledge/.env. GBrain architecture board exists.' },
+  { id: 'tool-miro', name: 'Miro', category: 'Creative', status: 'connected', color: GRAY.mid, description: 'REST API with token from knowledge/.env.agents. GBrain architecture board exists.' },
   { id: 'tool-canva-figma', name: 'Canva + Figma', category: 'Creative', status: 'available', color: GRAY.dark, description: 'Connected as Claude MCPs (session-scoped). Standalone API needs separate keys.' },
   // Comms
   { id: 'tool-imap', name: 'Email (4 IMAP slots)', category: 'Comms', status: 'available', color: GRAY.light, description: 'Client implemented for 4 inboxes — set INBOX_1..4_HOST/_USER/_PASS.' },
@@ -965,7 +969,7 @@ const roadmap: RoadmapItem[] = [
   { id: 'rm-supabase', title: 'Revive Supabase Second Brain', quarter: '2026-Q2', status: 'now', departmentId: 'dept-tech', description: 'Unpause free-tier project so gbrain hybrid queries resolve again.' },
   { id: 'rm-scheduler', title: 'Agent scheduler (cron runs)', quarter: '2026-Q3', status: 'next', departmentId: 'dept-tech', description: 'Recurring agent runs with run history and failure alerts.' },
   { id: 'rm-llm', title: 'LLM summarization layer', quarter: '2026-Q3', status: 'next', departmentId: 'dept-tech', description: 'Claude API digests over inbox/Slack/payments data.' },
-  { id: 'rm-macmini', title: 'Migrate to dedicated mini PC', quarter: '2026-Q3', status: 'next', departmentId: 'dept-tech', description: 'Host app + gbrain + agents on the mini; Supabase stays managed.' },
+  { id: 'rm-macmini', title: 'Migrate to Mac mini (M4 Pro 24GB)', quarter: '2026-Q3', status: 'next', departmentId: 'dept-tech', description: 'Host app + gbrain + agents on the mini; Supabase stays managed.' },
   { id: 'rm-ui', title: 'UI design pass', quarter: '2026-Q4', status: 'later', departmentId: 'dept-tech', description: 'Alex-led redesign once all integrations are live.' },
   { id: 'rm-auth', title: 'Auth + remote access', quarter: '2026-Q4', status: 'later', departmentId: 'dept-tech', description: 'Reach FOUNDER OS on the mini from anywhere, safely.' },
 ];
@@ -985,7 +989,7 @@ const domains: Domain[] = [
   { id: 'brm-4', number: 4, title: 'Payments & Revenue', color: GRAY.mid, items: ['Stripe balance + charges', 'PayPal / Square / Whop registry', 'Reconciliation (planned)'] },
   { id: 'brm-5', number: 5, title: 'Knowledge & Docs', color: GRAY.mid, items: ['Notion workspace', 'ZeroEntropy embeddings', 'Supabase Second Brain'] },
   { id: 'brm-6', number: 6, title: 'Agent Runtime', color: GRAY.dim, items: ['Registry + run()', 'Persisted run log', 'Honest failure states'] },
-  { id: 'brm-7', number: 7, title: 'Infrastructure', color: GRAY.dim, items: ['MacBook (now)', 'dedicated mini PC (next)', 'SQLite local', 'Supabase managed'] },
+  { id: 'brm-7', number: 7, title: 'Infrastructure', color: GRAY.dim, items: ['MacBook (now)', 'Mac mini M4 Pro 24GB (next)', 'SQLite local', 'Supabase managed'] },
   { id: 'brm-8', number: 8, title: 'Security', color: GRAY.dark, items: ['.env.local secrets (gitignored)', 'Read-only connector scopes', 'No keys in repo'] },
 ];
 
@@ -1000,14 +1004,13 @@ const phases: Phase[] = [
 const socialAccounts: SocialAccount[] = [
   { platform: 'instagram', handle: '@founderos.ai', url: 'https://instagram.com/founderos.ai', order: 1 },
   { platform: 'tiktok', handle: '@founderos.ai', url: 'https://tiktok.com/@founderos.ai', order: 2 },
-  { platform: 'twitter', handle: '@founderos', url: 'https://x.com/founderos', order: 3 },
-  { platform: 'youtube', handle: '@founderos', url: 'https://youtube.com/@founderos', order: 4 },
+  { platform: 'twitter', handle: '@Founderosai', url: 'https://x.com/Founderosai', order: 3 },
+  { platform: 'youtube', handle: '@founderosai', url: 'https://youtube.com/@founderosai', order: 4 },
   { platform: 'linkedin', handle: 'Alex Rivera', url: null, order: 5 },
 ];
 
-// Demo follower counts (synthetic).
-// 2026-06-12. LinkedIn has no count in the config, so it gets no baseline —
-// honest nulls until Alex's scrapes land. Live syncs append from here.
+// Demo follower counts. LinkedIn has no baseline in this demo, so it gets
+// honest nulls until scrapes land. Live syncs append from here.
 // 91 days of DAILY snapshot dates ending on the real 2026-06-12 capture, so
 // the audience lines read densely at every 7/30/60/all-time window — which is
 // also how the live daily Zernio sync will fill them going forward.
@@ -1044,14 +1047,14 @@ function ramp(start: number, end: number, seed: number): number[] {
   });
 }
 
-// Demo follower counts (synthetic); LinkedIn has no Zernio count, so
-// its history is fully DUMMY. Each platform ramps up to its current value.
+// Demo current follower counts; LinkedIn history is fully DUMMY. Each
+// platform ramps up to its current value.
 const FOLLOWER_TARGETS: { platform: SocialAccount['platform']; start: number; end: number }[] = [
-  { platform: 'instagram', start: 11200, end: 14350 },
-  { platform: 'tiktok', start: 5120, end: 6890 },
-  { platform: 'twitter', start: 2140, end: 2725 },
-  { platform: 'youtube', start: 620, end: 980 },
-  { platform: 'linkedin', start: 640, end: 1520 },
+  { platform: 'instagram', start: 30000, end: 42000 },
+  { platform: 'tiktok', start: 6000, end: 12000 },
+  { platform: 'twitter', start: 3000, end: 5200 },
+  { platform: 'youtube', start: 300, end: 900 },
+  { platform: 'linkedin', start: 800, end: 1500 },
 ];
 
 const socialBaseline: SocialSnapshot[] = FOLLOWER_TARGETS.flatMap((t, ti) =>
@@ -1064,14 +1067,11 @@ const socialBaseline: SocialSnapshot[] = FOLLOWER_TARGETS.flatMap((t, ti) =>
   })),
 );
 
-// Email list — demo Beehiiv account "Alex's Newsletter"
-// (pub_00000000-0000-0000-0000-000000000000), created 2026-05-28 via a bulk
-// import of ~4,812 contacts; 4,813 active as of 2026-07-07 (open 52.4%, click
-// 3.0%). Beehiiv's stats endpoint exposes only current + all-time aggregates,
-// not a daily series, so we seed the honest shape: the list exists only from
-// its import date and sits essentially flat at ~4.8k (net +1 over the window).
-// Once BEEHIIV_API_KEY lands, syncBeehiivEmail overwrites today's point with
-// the live count. See email-list-beehiiv.
+// Email list — demo Beehiiv snapshot. Beehiiv's stats endpoint exposes only
+// current + all-time aggregates, not a daily series, so we seed the honest
+// shape: the list exists from a single import date and sits essentially flat
+// over the window. Once BEEHIIV_API_KEY lands, syncBeehiivEmail overwrites
+// today's point with the live count.
 const BEEHIIV_IMPORT_DATE = '2026-05-28';
 const BEEHIIV_ACTIVE_SUBSCRIBERS = 2141;
 const emailListDates = SERIES_DATES.filter((d) => d >= BEEHIIV_IMPORT_DATE);
@@ -1084,7 +1084,7 @@ const emailListBaseline: EmailListSnapshot[] = emailListDates.map((capturedAt, i
 
 // DM counts — DUMMY until a ManyChat/Zernio source is wired. Current totals…
 const DM_TARGETS: { platform: SocialDm['platform']; start: number; end: number }[] = [
-  { platform: 'instagram', start: 640, end: 1240 },
+  { platform: 'instagram', start: 820, end: 1240 },
   { platform: 'tiktok', start: 210, end: 386 },
   { platform: 'twitter', start: 120, end: 214 },
   { platform: 'youtube', start: 26, end: 58 },
@@ -1094,6 +1094,37 @@ const socialDms: SocialDm[] = DM_TARGETS.map((t) => ({
   platform: t.platform,
   count: t.end,
   updatedAt: '2026-06-12',
+}));
+
+// Instagram DM inbox — realistic seeded conversations so the /social DM tab is
+// alive on a fresh clone. DUMMY until the ManyChat webhook feeds it live
+// (source 'seed-dummy'; real messages arrive as source 'manychat'). Four
+// threads, inbound + outbound, believable Vantage / FounderOS lead-gen tone.
+const socialDmMessages: SocialDmMessage[] = [
+  // Alex — agency owner off a reel
+  ['ig-alex', 'Alex Rivera', 'alex.rivera', 'in', 'saw your reel on the 3-agent setup 🔥 do you actually work with agencies?', null, '2026-07-18T14:02:00.000Z'],
+  ['ig-alex', 'Alex Rivera', 'alex.rivera', 'out', 'appreciate it! yeah — agencies are exactly who Vantage is built for. what are you running right now?', null, '2026-07-18T14:09:00.000Z'],
+  ['ig-alex', 'Alex Rivera', 'alex.rivera', 'in', 'SMMA, ~12 clients, drowning in fulfillment tbh 😅', null, '2026-07-18T14:15:00.000Z'],
+  // Jordan — keyword flow "SCALE"
+  ['ig-jordan', 'Jordan Blake', 'jordanbuilds', 'in', 'SCALE', 'SCALE', '2026-07-18T12:41:00.000Z'],
+  ['ig-jordan', 'Jordan Blake', 'jordanbuilds', 'out', 'boom 💥 here’s the free breakdown → founderos.ai/scale. want me to show how it maps to your funnel?', 'SCALE', '2026-07-18T12:41:20.000Z'],
+  ['ig-jordan', 'Jordan Blake', 'jordanbuilds', 'in', 'yes pls', null, '2026-07-18T13:05:00.000Z'],
+  // Priya — story reply
+  ['ig-priya', 'Priya N', 'priya.builds', 'in', 'replied to your story — I want OUT of retainer hell 😩', null, '2026-07-17T21:12:00.000Z'],
+  ['ig-priya', 'Priya N', 'priya.builds', 'out', 'lol felt. that’s the whole thesis. what’s your current model — retainers or projects?', null, '2026-07-17T21:30:00.000Z'],
+  // Sam — pricing question (unreplied → shows as needing attention)
+  ['ig-sam', 'Sam Ortiz', 'sam.ortiz.co', 'in', 'what does pricing look like for the done-for-you build?', null, '2026-07-18T15:48:00.000Z'],
+].map(([subscriberId, name, handle, direction, text, tag, ts], i) => ({
+  id: `dm-${subscriberId}-${i}`,
+  platform: 'instagram' as const,
+  subscriberId: subscriberId as string,
+  name: name as string,
+  handle: handle as string,
+  text: text as string,
+  direction: direction as SocialDmMessage['direction'],
+  tag: tag as string | null,
+  ts: ts as string,
+  source: 'seed-dummy',
 }));
 // …and the per-day history behind them, so DM growth charts over every window.
 const socialDmSnapshots: SocialDmSnapshot[] = DM_TARGETS.flatMap((t, ti) =>
@@ -1139,6 +1170,10 @@ type SeededJourney = {
   amountUsd?: number;
   email?: string; // dummy contact channels so the demo shows outreach actions
   phone?: string;
+  person?: string; // the human behind the deal — demo dossier identity
+  company?: string;
+  role?: string;
+  linkedin?: string;
   touches: SeededTouch[]; // 4–5, chronological (last number = days ago)
 };
 
@@ -1296,6 +1331,8 @@ const FUNNEL_JOURNEYS: SeededJourney[] = [
     id: 'fc-grace-lin', name: 'Grace Lin — Lin & Co Accounting', venture: 'vantage',
     relationship: 'warm', likelihood: 74,
     email: 'grace@linandco.example.com', phone: '+15550100742',
+    person: 'Grace Lin', company: 'Lin & Co Accounting', role: 'Managing Partner',
+    linkedin: 'https://linkedin.com/in/gracelin-example',
     touches: [
       ['first_touch', 'organic', 'X thread: client-onboarding agent breakdown', 'trakyo', 6],
       ['engaged', 'organic', 'Followed + bookmarked, visited site twice', 'trakyo', 5],
@@ -1317,6 +1354,10 @@ const funnelContacts: FunnelContact[] = FUNNEL_JOURNEYS.map((j) => ({
   url: null,
   email: j.email ?? null,
   phone: j.phone ?? null,
+  person: j.person ?? null,
+  company: j.company ?? null,
+  role: j.role ?? null,
+  linkedin: j.linkedin ?? null,
   createdAt: funnelDay(j.touches[0][4]), // journey starts at the first touch
 }));
 
@@ -1333,6 +1374,213 @@ const funnelTouches: FunnelTouch[] = FUNNEL_JOURNEYS.flatMap((j) =>
   })),
 );
 
+// The machine, mapped: each venture's process as an owned chain of steps.
+// Real-ready — owners, weekly hours, tools, the bottlenecks that leak money,
+// and the automations (live or suggested) that carry the load back.
+const workflows: Workflow[] = [
+  {
+    id: 'wf-vantage-sales',
+    name: 'Vantage sales machine',
+    subtitle: 'Cold outbound to closed retainer.',
+    revenueUsd: 120_000,
+    order: 0,
+    steps: [
+      {
+        id: 'wf-mer-1',
+        title: 'Run outbound campaigns',
+        ownerKind: 'agent',
+        owner: 'Zernio Publisher',
+        hoursPerWeek: 6,
+        tools: ['zernio', 'arcads'],
+        edgeLabel: 'replies',
+        leakUsd: null,
+        automation: { title: 'Always-on content + DM outreach', state: 'live', recoveredUsd: 4200 },
+      },
+      {
+        id: 'wf-mer-2',
+        title: 'Qualify replies',
+        ownerKind: 'agent',
+        owner: 'Comms Agent',
+        hoursPerWeek: 9,
+        tools: ['manychat', 'gmail'],
+        edgeLabel: 'qualified',
+        leakUsd: 14_000,
+        automation: { title: 'Auto-qualify + book', state: 'suggested', recoveredUsd: 9000 },
+      },
+      {
+        id: 'wf-mer-3',
+        title: 'Book demos',
+        ownerKind: 'human',
+        owner: 'Alex · Founder',
+        hoursPerWeek: 4,
+        tools: ['calendar', 'attio'],
+        edgeLabel: 'demo',
+        leakUsd: null,
+        automation: null,
+      },
+      {
+        id: 'wf-mer-4',
+        title: 'Sales call',
+        ownerKind: 'human',
+        owner: 'Alex · Founder',
+        hoursPerWeek: 10,
+        tools: ['webinarjam', 'attio'],
+        edgeLabel: 'proposal',
+        leakUsd: null,
+        automation: null,
+      },
+      {
+        id: 'wf-mer-5',
+        title: 'Proposal & follow-up',
+        ownerKind: 'human',
+        owner: 'Alex · Founder',
+        hoursPerWeek: 5,
+        tools: ['proposal-gen', 'gmail'],
+        edgeLabel: 'won',
+        leakUsd: 6000,
+        automation: { title: 'Proposal follow-up sequence', state: 'suggested', recoveredUsd: 6000 },
+      },
+      {
+        id: 'wf-mer-6',
+        title: 'Onboard & deliver',
+        ownerKind: 'agent',
+        owner: 'Onboarding Agent',
+        hoursPerWeek: 3,
+        tools: ['attio', 'slack', 'notion'],
+        edgeLabel: null,
+        leakUsd: null,
+        automation: { title: 'Onboarding rails', state: 'live', recoveredUsd: 3000 },
+      },
+    ],
+  },
+  {
+    id: 'wf-lc-delivery',
+    name: 'Launchpad Cohort delivery',
+    subtitle: 'Webinar lead to retained program member.',
+    revenueUsd: 80_000,
+    order: 1,
+    steps: [
+      {
+        id: 'wf-lc-1',
+        title: 'Capture webinar leads',
+        ownerKind: 'agent',
+        owner: 'WebinarJam',
+        hoursPerWeek: 2,
+        tools: ['webinarjam', 'ghl'],
+        edgeLabel: 'registered',
+        leakUsd: null,
+        automation: { title: 'Webinar to GHL sync', state: 'live', recoveredUsd: 2500 },
+      },
+      {
+        id: 'wf-lc-2',
+        title: 'Nurture in GHL',
+        ownerKind: 'agent',
+        owner: 'GoHighLevel',
+        hoursPerWeek: 3,
+        tools: ['ghl'],
+        edgeLabel: 'booked',
+        leakUsd: 8000,
+        automation: { title: 'Nurture sequences', state: 'live', recoveredUsd: 5000 },
+      },
+      {
+        id: 'wf-lc-3',
+        title: 'Strategy call',
+        ownerKind: 'human',
+        owner: 'Alex · Founder',
+        hoursPerWeek: 8,
+        tools: ['ghl', 'calendar'],
+        edgeLabel: 'closed',
+        leakUsd: null,
+        automation: null,
+      },
+      {
+        id: 'wf-lc-4',
+        title: 'Deliver program',
+        ownerKind: 'human',
+        owner: 'LC Team',
+        hoursPerWeek: 12,
+        tools: ['skool', 'notion'],
+        edgeLabel: 'retained',
+        leakUsd: 5000,
+        automation: { title: 'Skool community ops', state: 'suggested', recoveredUsd: 4000 },
+      },
+      {
+        id: 'wf-lc-5',
+        title: 'Track attribution',
+        ownerKind: 'agent',
+        owner: 'Trakyo',
+        hoursPerWeek: 1,
+        tools: ['trakyo'],
+        edgeLabel: null,
+        leakUsd: null,
+        automation: { title: 'Revenue attribution', state: 'suggested', recoveredUsd: 0 },
+      },
+    ],
+  },
+];
+
+// Agent task board — seeded across open/doing/done so the Kanban is alive on
+// first load. Demo cards; user-added tasks coexist (we insert by id, never wipe).
+const SEED_TS = '2026-07-21T12:00:00.000Z';
+const agentTasks: AgentTask[] = [
+  { id: 'task-seed-1', agentId: 'comms-agent', title: 'Triage overnight inbound across 4 inboxes', status: 'open', createdAt: SEED_TS, updatedAt: SEED_TS },
+  { id: 'task-seed-2', agentId: 'social-agent', title: 'Draft 3 IG hooks for the Vantage launch', status: 'open', createdAt: SEED_TS, updatedAt: SEED_TS },
+  { id: 'task-seed-3', agentId: 'gmail-worker', title: 'Follow up on 6 unreplied warm leads', status: 'open', createdAt: SEED_TS, updatedAt: SEED_TS },
+  { id: 'task-seed-4', agentId: 'arcads-creative', title: 'Generate 5 UGC variants for the new offer', status: 'open', createdAt: SEED_TS, updatedAt: SEED_TS },
+  { id: 'task-seed-5', agentId: 'zernio-publisher', title: "Schedule this week's cross-platform posts", status: 'doing', createdAt: SEED_TS, updatedAt: SEED_TS },
+  { id: 'task-seed-6', agentId: 'comms-agent', title: 'Qualify 12 new DMs from the campaign', status: 'doing', createdAt: SEED_TS, updatedAt: SEED_TS },
+  { id: 'task-seed-7', agentId: 'remotion-editor', title: 'Cut the sales-call highlight reel', status: 'doing', createdAt: SEED_TS, updatedAt: SEED_TS },
+  { id: 'task-seed-8', agentId: 'gmail-worker', title: 'Send the Vantage proposal follow-up', status: 'done', createdAt: SEED_TS, updatedAt: SEED_TS },
+  { id: 'task-seed-9', agentId: 'slack-worker', title: 'Post the Monday standup digest', status: 'done', createdAt: SEED_TS, updatedAt: SEED_TS },
+  { id: 'task-seed-10', agentId: 'social-agent', title: 'Publish the Tuesday carousel', status: 'done', createdAt: SEED_TS, updatedAt: SEED_TS },
+  { id: 'task-seed-11', agentId: 'zernio-publisher', title: 'Sync follower counts across 6 platforms', status: 'done', createdAt: SEED_TS, updatedAt: SEED_TS },
+];
+
+const SKILL_STATUS_NOTE: Record<string, string> = {
+  live: 'Live in production. The owning agent runs this today.',
+  learning: 'In training. Runs with a human in the loop while it calibrates.',
+  planned: 'Planned. Scoped and queued, not yet wired.',
+};
+
+/** Compose a real-ready SKILL.md doc from a skill's fields (viewed from its card). */
+function skillDoc(s: Omit<Skill, 'markdown'>): string {
+  const slug = s.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const toolLine = s.tools.length ? s.tools.map((t) => `\`${t}\``).join(', ') : 'no external tools';
+  return `---
+name: ${slug}
+description: ${s.description}
+category: ${s.category}
+status: ${s.status}
+---
+
+# ${s.name}
+
+${s.description}
+
+## When to use
+Reach for this when the ${s.category.toLowerCase()} flow needs to ${s.name.toLowerCase()}. It runs on ${toolLine}.
+
+## Status
+${SKILL_STATUS_NOTE[s.status] ?? s.status}
+`;
+}
+
+// The capability library the agent workforce draws on.
+const skills: Omit<Skill, 'markdown'>[] = [
+  { id: 'skill-outbound', name: 'Cold outbound sequencing', category: 'Sales', description: 'Multi-touch DM + content cadence that opens conversations at scale.', ownerAgentId: 'zernio-publisher', status: 'live', tools: ['zernio', 'manychat'], order: 0 },
+  { id: 'skill-qualify', name: 'Reply qualification', category: 'Sales', description: 'Reads inbound replies, scores intent, and books the qualified ones.', ownerAgentId: 'comms-agent', status: 'live', tools: ['manychat', 'gmail'], order: 1 },
+  { id: 'skill-proposal', name: 'Proposal drafting', category: 'Sales', description: 'Turns a call transcript into a tailored, on-brand proposal.', ownerAgentId: null, status: 'learning', tools: ['proposal-gen', 'attio'], order: 2 },
+  { id: 'skill-hooks', name: 'Hook writing', category: 'Content', description: 'Short-form hooks and captions tuned to each platform.', ownerAgentId: 'social-agent', status: 'live', tools: ['zernio'], order: 3 },
+  { id: 'skill-ugc', name: 'UGC generation', category: 'Content', description: 'Generates ad-ready UGC variants (Veo / Sora / Kling).', ownerAgentId: 'arcads-creative', status: 'live', tools: ['arcads'], order: 4 },
+  { id: 'skill-edit', name: 'Video editing', category: 'Content', description: 'Cuts reels and highlight clips programmatically.', ownerAgentId: 'remotion-editor', status: 'live', tools: ['remotion'], order: 5 },
+  { id: 'skill-schedule', name: 'Cross-post scheduling', category: 'Content', description: 'Queues and publishes across every connected platform.', ownerAgentId: 'zernio-publisher', status: 'live', tools: ['zernio'], order: 6 },
+  { id: 'skill-triage', name: 'Inbox triage', category: 'Ops', description: 'Sorts the four inboxes into work / personal / misc and flags priority.', ownerAgentId: 'gmail-worker', status: 'live', tools: ['gmail'], order: 7 },
+  { id: 'skill-dm', name: 'DM management', category: 'Ops', description: 'Handles Instagram and WhatsApp DMs end to end.', ownerAgentId: 'comms-agent', status: 'live', tools: ['manychat', 'whatsapp'], order: 8 },
+  { id: 'skill-retrieval', name: 'Knowledge retrieval', category: 'Ops', description: 'Hybrid search over G-Brain so every agent shares one memory.', ownerAgentId: 'conductor', status: 'live', tools: ['gbrain'], order: 9 },
+  { id: 'skill-reconcile', name: 'Payment reconciliation', category: 'Ops', description: 'Matches processor payouts to clients across Stripe and FanBasis.', ownerAgentId: null, status: 'planned', tools: ['stripe', 'fanbasis'], order: 10 },
+  { id: 'skill-attribution', name: 'Revenue attribution', category: 'Ops', description: 'Ties content and calls to closed revenue via Trakyo.', ownerAgentId: null, status: 'planned', tools: ['trakyo', 'ghl'], order: 11 },
+];
+
 export function seedDatabase(db: FounderDb): void {
   // INSERT OR REPLACE in every repo makes re-seeding idempotent by id.
   for (const d of departments) db.departments.insert(d);
@@ -1345,6 +1593,11 @@ export function seedDatabase(db: FounderDb): void {
   db.people.deleteWhereIdNotIn(people.map((p) => p.id));
   for (const t of sopTasks) db.sopTasks.insert(t);
   db.sopTasks.deleteWhereIdNotIn(sopTasks.map((t) => t.id));
+  for (const w of workflows) db.workflows.insert(w);
+  db.workflows.deleteWhereIdNotIn(workflows.map((w) => w.id));
+  for (const s of skills) db.skills.insert({ ...s, markdown: skillDoc(s) });
+  db.skills.deleteWhereIdNotIn(skills.map((s) => s.id));
+  for (const t of agentTasks) db.agentTasks.insert(t); // insert-by-id; user tasks coexist
   for (const t of tools) db.tools.insert(t);
   for (const r of roadmap) db.roadmap.insert(r);
   for (const m of metrics) db.metrics.insert(m);
@@ -1355,6 +1608,7 @@ export function seedDatabase(db: FounderDb): void {
   for (const s of socialBaseline) db.social.insertSnapshot(s);
   for (const d of socialDms) db.social.upsertDm(d);
   for (const s of socialDmSnapshots) db.social.insertDmSnapshot(s);
+  for (const m of socialDmMessages) db.social.upsertDmMessage(m);
   // Retired dummy email history leaves the DB on re-seed; the real Beehiiv
   // baseline is authoritative. Live-synced snapshots survive.
   db.emailList.deleteSeeded();
