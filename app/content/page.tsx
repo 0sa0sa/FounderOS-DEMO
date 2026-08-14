@@ -4,6 +4,7 @@ import { getDb } from '@/lib/data';
 import { contentAgents } from '@/lib/content';
 import { zernioRecentPosts, zernioPostDays } from '@/lib/connectors/zernio';
 import { PageHeader } from '@/components/PageHeader';
+import { LeadMagnets } from '@/components/LeadMagnets';
 import { Badge, Dot, SectionHead } from '@/components/terminal';
 import type { Agent } from '@/lib/schemas';
 
@@ -95,6 +96,7 @@ function BacklinkCard({
 }
 
 export default async function ContentPage() {
+  const leadMagnets = getDb().leadMagnets.all();
   const db = getDb();
   const crew = contentAgents(db.agents.all());
   const lead = crew[0] ?? null;
@@ -186,6 +188,21 @@ export default async function ContentPage() {
             No live Zernio pull right now — recent content shows here once the API responds (key from ~/.config/social/.env).
           </p>
         )}
+      </section>
+
+      {/* Lead magnets — every landing page we ship, with the live link */}
+      <section className="mt-8">
+        <SectionHead label="Lead magnets" count={`${leadMagnets.filter((m) => m.status === 'live').length} live`} />
+        <p className="mb-3 flex items-center gap-1.5 text-xs text-os-dim">
+          Every landing page shipped behind a post ·{' '}
+          <Link
+            href="/content/lead-magnets"
+            className="inline-flex items-center gap-0.5 text-os-accent hover:underline"
+          >
+            Open the register <ArrowUpRight className="h-3 w-3" />
+          </Link>
+        </p>
+        <LeadMagnets rows={leadMagnets.slice(0, 4)} />
       </section>
     </div>
   );

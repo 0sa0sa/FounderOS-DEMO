@@ -12,6 +12,7 @@ import type {
   Person,
   Phase,
   RoadmapItem,
+  LeadMagnet,
   SopTask,
   Workflow,
   Skill,
@@ -467,6 +468,48 @@ const people: Person[] = [
 // ── SOP tasks — every department role's job, written out ─────────────────────
 // One task per worker, one worker per task (monogamous; tests enforce it).
 // The chain the /brain graph draws: department → task → worker → tools.
+const leadMagnets: LeadMagnet[] = [
+  {
+    id: 'operator-stack',
+    name: 'The Operator Stack',
+    offer: 'Every layer of the agent stack, and what to use instead of each one',
+    url: 'https://stack.example.com',
+    status: 'live',
+    captures: 'email',
+    destination: 'Newsletter · main list',
+    source: 'Carousel · "One person, a company of agents" (comment STACK)',
+    launchedAt: '2026-08-12',
+    origin: 'seed',
+    notes: 'Ungated. Newsletter signup plus a separate cohort waitlist form.',
+  },
+  {
+    id: 'automation-teardown',
+    name: 'The Automation Teardown',
+    offer: 'A workflow pulled apart step by step, with the hours each one costs',
+    url: 'https://teardown.example.com',
+    status: 'live',
+    captures: 'email',
+    destination: 'Newsletter · main list',
+    source: 'Short · "Where the week actually goes" (comment TEARDOWN)',
+    launchedAt: '2026-08-05',
+    origin: 'seed',
+    notes: 'Built from the workflows view. Doubles as the cohort lesson one handout.',
+  },
+  {
+    id: 'cohort-waitlist',
+    name: 'Cohort Waitlist',
+    offer: 'A seat in the next cohort before it opens publicly',
+    url: 'https://waitlist.example.com',
+    status: 'paused',
+    captures: 'email',
+    destination: 'Newsletter · cohort waitlist segment',
+    source: 'Bio link + end cards',
+    launchedAt: '2026-07-28',
+    origin: 'seed',
+    notes: 'Paused between cohorts. Reopen when the next intake is dated.',
+  },
+];
+
 const sopTasks: SopTask[] = [
   // TECH
   {
@@ -1591,6 +1634,8 @@ export function seedDatabase(db: FounderDb): void {
   db.departments.deleteWhereIdNotIn(departments.map((d) => d.id));
   for (const p of people) db.people.insert(p);
   db.people.deleteWhereIdNotIn(people.map((p) => p.id));
+  for (const m of leadMagnets) db.leadMagnets.insert(m);
+  db.leadMagnets.deleteWhereIdNotIn(leadMagnets.map((m) => m.id));
   for (const t of sopTasks) db.sopTasks.insert(t);
   db.sopTasks.deleteWhereIdNotIn(sopTasks.map((t) => t.id));
   for (const w of workflows) db.workflows.insert(w);

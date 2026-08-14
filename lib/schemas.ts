@@ -390,6 +390,31 @@ export const PersonSchema = z.object({
 
 export const SopAssigneeKindSchema = z.enum(['agent', 'person']);
 
+// ── Lead magnets — every landing page we ship, as a register ───────────────
+export const LeadMagnetStatusSchema = z.enum(['live', 'draft', 'paused', 'archived']);
+export type LeadMagnetStatus = z.infer<typeof LeadMagnetStatusSchema>;
+
+export const LeadMagnetSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  /** what the visitor actually gets */
+  offer: z.string(),
+  url: z.string().url(),
+  status: LeadMagnetStatusSchema,
+  /** what the page asks for: an email, a booking, or nothing yet */
+  captures: z.enum(['email', 'booking', 'none']),
+  /** where those leads land (newsletter list, CRM, calendar) */
+  destination: z.string(),
+  /** the campaign / post this page was built for */
+  source: z.string(),
+  launchedAt: z.string().min(4),
+  notes: z.string().default(''),
+  /** who made it: the seed file, or the operator creating one from the OS. Seeding
+   *  may only prune its own rows, so 'os' rows survive a re-seed. */
+  origin: z.enum(['seed', 'os']).default('seed'),
+});
+export type LeadMagnet = z.infer<typeof LeadMagnetSchema>;
+
 export const SopTaskSchema = z.object({
   id: z.string().min(1),
   departmentId: z.string().min(1),
