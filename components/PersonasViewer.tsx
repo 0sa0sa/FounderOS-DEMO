@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { BarChart3, Boxes, Brain, ChevronLeft, ChevronRight, Plug, Star, Zap, type LucideIcon } from 'lucide-react';
 import { PersonaOrgChart } from '@/components/PersonaOrgChart';
+import { PersonaBrainGraph } from '@/components/PersonaBrainGraph';
 import type { Persona } from '@/lib/schemas';
 
 function SectionLabel({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
@@ -13,16 +14,20 @@ function SectionLabel({ icon: Icon, children }: { icon: LucideIcon; children: Re
   );
 }
 
-function PersonaCard({ p }: { p: Persona }) {
+function PersonaCard({ p, cover = true }: { p: Persona; cover?: boolean }) {
   return (
     <article
       className="flex flex-col overflow-hidden rounded-lg-t border border-os-border bg-os-surface"
       style={{ borderTop: `2px solid ${p.accent}` }}
     >
-      {/* cover — the persona's OS as an org chart (core → departments → agents) */}
-      <div className="border-b border-os-border bg-os-bg2">
-        <PersonaOrgChart persona={p} />
-      </div>
+      {/* cover — the persona's OS as an org chart (core → departments → agents).
+          Hidden in the split view, where the radial knowledge graph on the right
+          is the visual. */}
+      {cover && (
+        <div className="border-b border-os-border bg-os-bg2">
+          <PersonaOrgChart persona={p} />
+        </div>
+      )}
 
       {/* header */}
       <div className="border-b border-os-border px-5 py-4">
@@ -203,9 +208,27 @@ export function PersonasViewer({ personas }: { personas: Persona[] }) {
         </div>
       </div>
 
-      {/* one card */}
-      <div key={current.id} className="persona-in mx-auto max-w-4xl">
-        <PersonaCard p={current} />
+      {/* split view: the card on the LEFT, the persona's G-Brain knowledge
+          graph on the RIGHT — same constellation shape as the real /brain, built
+          from this persona's own departments + agents */}
+      <div key={current.id} className="persona-in grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)]">
+        <PersonaCard p={current} cover={false} />
+        <div
+          className="flex h-[600px] flex-col overflow-hidden rounded-lg-t border border-os-border bg-os-surface lg:sticky lg:top-4 lg:h-[calc(100dvh-11rem)] lg:min-h-[560px]"
+          style={{ borderTop: `2px solid ${current.accent}` }}
+        >
+          <div className="flex shrink-0 items-center justify-between border-b border-os-border px-4 py-2.5">
+            <span className="font-mono text-[9.5px] uppercase tracking-[0.16em] text-os-dim">
+              G-Brain · knowledge graph
+            </span>
+            <span className="font-mono text-[9.5px] text-os-dim">
+              {current.pillars.length} depts · {current.pillars.reduce((s, p) => s + p.agents.length, 0)} agents
+            </span>
+          </div>
+          <div className="min-h-0 flex-1 p-2">
+            <PersonaBrainGraph persona={current} />
+          </div>
+        </div>
       </div>
     </div>
   );

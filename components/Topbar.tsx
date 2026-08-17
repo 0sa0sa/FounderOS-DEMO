@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { Bot, Search } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { OsMark } from '@/components/OsMark';
 import { CONDUCTOR_OPEN_EVENT } from '@/components/ConductorPanel';
 
 const SEGMENT_LABELS: Record<string, string> = {
@@ -53,6 +54,8 @@ export function Topbar() {
         >
           <Bot className="h-3.5 w-3.5" />
         </button>
+        {/* the OS mark, anchoring the brand in the top-right corner */}
+        <OsMark size={26} className="ml-1 shrink-0" />
       </div>
     </div>
   );

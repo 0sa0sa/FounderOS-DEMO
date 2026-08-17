@@ -17,10 +17,17 @@ import {
  * while the rest fade back. Hover a legend chip to lock onto a layer directly.
  */
 
-const S = 520; // viewBox square
+const S = 520; // vertical extent (the chart is centered at C on both axes)
 const C = S / 2;
 const R = 172; // outer grid radius
-const LABEL_R = R + 44;
+const LABEL_R = R + 36; // rim labels sit just outside the grid
+// The long side labels (COMMUNICATIONS, FINANCES, CLIENTS) run wider than the
+// grid, so the viewBox gets horizontal breathing room on each side. The chart
+// stays centered at C; the hover math below reads this same padded box so the
+// layer-sifting still tracks the cursor.
+const PAD_X = 76;
+const VB_MIN_X = -PAD_X;
+const VB_W = S + PAD_X * 2;
 
 type Layer = { key: PillarLayerKey; label: string; color: string; dash?: string; fill?: boolean };
 const LAYERS: Layer[] = [
@@ -51,7 +58,7 @@ export function PillarRadar({
     if (!svg) return;
     const rect = svg.getBoundingClientRect();
     if (rect.width === 0) return;
-    const x = ((e.clientX - rect.left) / rect.width) * S;
+    const x = VB_MIN_X + ((e.clientX - rect.left) / rect.width) * VB_W;
     const y = ((e.clientY - rect.top) / rect.height) * S;
     setActive(nearestPillarLayer({ x, y }, axes, R, C));
   };
@@ -66,10 +73,10 @@ export function PillarRadar({
       <div className="grid flex-1 place-items-center">
         <svg
           ref={svgRef}
-          viewBox={`0 0 ${S} ${S}`}
-          className="block w-full max-w-[500px]"
+          viewBox={`${VB_MIN_X} 0 ${VB_W} ${S}`}
+          className="block w-full max-w-[560px]"
           role="img"
-          aria-label="Pillar health radar — hover to sift between layers"
+          aria-label="Pillar health radar · hover to sift between layers"
           onMouseMove={onMove}
           onMouseLeave={() => setActive(null)}
         >
@@ -121,7 +128,7 @@ export function PillarRadar({
             const [x, y] = radarPoint(i, n, LABEL_R, C);
             const anchor = Math.abs(x - C) < 8 ? 'middle' : x > C ? 'start' : 'end';
             return (
-              <text key={a.id} x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontFamily="var(--font-mono)" fontSize={15} letterSpacing="0.28em" fill="var(--text-3)">
+              <text key={a.id} x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontFamily="var(--font-mono)" fontSize={13} letterSpacing="0.14em" fill="var(--text-2)">
                 {a.label.toUpperCase().replace('/GROWTH', '')}
               </text>
             );

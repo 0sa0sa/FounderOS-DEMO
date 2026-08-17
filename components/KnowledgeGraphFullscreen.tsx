@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight, Minimize2 } from 'lucide-react';
 import type { ToolWiki } from '@/lib/agent-wiki';
@@ -17,7 +17,7 @@ export function KnowledgeGraphFullscreen({
   toolWiki: ToolWiki | null;
   /** task / human detail card rendered by the graph (SOP chain nodes) */
   extraDetail?: React.ReactNode;
-  /** the Notes vault is expanded — Escape collapses it (via
+  /** the Obsidian vault is expanded — Escape collapses it (via
       onCollapseCore) instead of exiting fullscreen; doing both at once
       stacked two heavy transitions and glitched the exit */
   coreOpen?: boolean;
@@ -39,6 +39,28 @@ export function KnowledgeGraphFullscreen({
   useEffect(() => setMounted(true), []);
   const hasDetail = !!(toolWiki || extraDetail);
   const idx = deptList.findIndex((d) => d.teamId === currentTeamId);
+
+  // the directory is a wide right-docked panel; drag its left edge to resize.
+  const DIR_MIN = 288;
+  const DIR_MAX = 680;
+  const [dirWidth, setDirWidth] = useState(380);
+  const resizeRef = useRef<{ startX: number; startW: number } | null>(null);
+  const onResizeDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+    resizeRef.current = { startX: e.clientX, startW: dirWidth };
+  };
+  const onResizeMove = (e: React.PointerEvent) => {
+    const d = resizeRef.current;
+    if (!d) return;
+    // dragging the handle left (clientX decreases) widens the panel
+    const next = d.startW + (d.startX - e.clientX);
+    setDirWidth(Math.max(DIR_MIN, Math.min(DIR_MAX, next)));
+  };
+  const onResizeUp = (e: React.PointerEvent) => {
+    resizeRef.current = null;
+    (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
+  };
   const step = (dir: number) => {
     if (deptList.length === 0) return;
     const next = idx < 0 ? (dir > 0 ? 0 : deptList.length - 1) : (idx + dir + deptList.length) % deptList.length;
@@ -78,12 +100,26 @@ export function KnowledgeGraphFullscreen({
       <div className="relative min-w-0 flex-1 overflow-hidden bg-os-surface">
         {children}
 
-        {/* vault search — top-left while the Notes core is open */}
+        {/* vault search — top-left while the Obsidian core is open */}
         {searchSlot && <div className="absolute left-5 top-5 z-10">{searchSlot}</div>}
 
-        {/* pillar selector — compact, TOP-LEFT (Alex: convenient, not in
+        {/* department title — big and bold at the TOP CENTER, ALWAYS on (even
+            with a card open) so you can always read which department you're
+            looking at during the demo (the operator) */}
+        {!coreOpen && currentDept && (
+          <div className="pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2">
+            <span
+              className="text-[24px] font-bold uppercase leading-none tracking-[0.08em]"
+              style={{ color: '#ffffff', textShadow: '0 1px 8px rgba(0,0,0,0.75)' }}
+            >
+              {currentDept.name}
+            </span>
+          </div>
+        )}
+
+        {/* pillar selector — compact, TOP-LEFT (the operator: convenient, not in
             the graph's way): current pillar + one dot per pillar to jump */}
-        {!coreOpen && (
+        {!coreOpen && !hasDetail && (
           <div className="absolute left-5 top-5 z-20 flex items-center gap-2.5 rounded-sm-t border border-os-border-strong bg-os-bg/85 px-2.5 py-1.5 backdrop-blur">
             <div className="flex flex-col">
               <span
@@ -127,10 +163,29 @@ export function KnowledgeGraphFullscreen({
         {/* compact legend — bottom-left, always on */}
         {legendSlot && <div className="absolute bottom-5 left-5 z-10">{legendSlot}</div>}
 
-        {/* the everything-index — always expanded in fullscreen (the detail
-            aside overlays it while a card is open) */}
+        {/* the everything-index — a wide right-docked panel (the detail aside
+            overlays it while a card is open). Drag its left edge to resize. */}
         {directorySlot && (
-          <div className={`absolute bottom-5 right-5 top-16 z-[5] flex ${directoryCollapsed ? 'w-9' : 'w-72'}`}>{directorySlot}</div>
+          <div
+            className="absolute bottom-5 right-5 top-16 z-[5] flex"
+            style={{ width: directoryCollapsed ? 36 : dirWidth }}
+          >
+            {!directoryCollapsed && (
+              <div
+                onPointerDown={onResizeDown}
+                onPointerMove={onResizeMove}
+                onPointerUp={onResizeUp}
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Drag to resize the directory"
+                title="Drag to resize"
+                className="group absolute -left-2 top-0 z-10 flex h-full w-4 cursor-ew-resize touch-none items-center justify-center"
+              >
+                <span className="h-12 w-0.5 rounded-full bg-os-border-strong transition-colors group-hover:bg-os-accent" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">{directorySlot}</div>
+          </div>
         )}
 
         {/* exit fullscreen — top-right */}
@@ -141,35 +196,46 @@ export function KnowledgeGraphFullscreen({
           <Minimize2 className="h-3.5 w-3.5" /> Exit
         </button>
 
-        {/* side paddles: slim, hugging the canvas edges at mid-height — you
-            turn the wheel from where you're already looking, never the top.
-            The right paddle steps aside when the detail panel is open. */}
+        {/* department nav — a single control pinned to the BOTTOM CENTER at all
+            times (the operator), so you can always turn the wheel to another pillar
+            no matter what card or panel is open. Bottom-center is clear water
+            between the left card and the right directory. */}
         {!coreOpen && (
-          <>
+          <div className="absolute bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full border border-os-border-strong bg-os-bg/90 px-1.5 py-1.5 backdrop-blur">
             <button
               onClick={() => step(-1)}
               aria-label="Previous department"
               title="Previous pillar (←)"
-              className="absolute left-2 top-1/2 z-20 flex h-32 w-12 -translate-y-1/2 items-center justify-center rounded-sm-t border border-os-border bg-os-bg/70 text-os-muted backdrop-blur transition-colors hover:border-os-border-strong hover:text-os-text"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-os-muted transition-colors hover:bg-os-surface hover:text-os-text"
             >
-              <ChevronLeft className="h-7 w-7" />
+              <ChevronLeft className="h-5 w-5" />
             </button>
+            <span
+              className="min-w-[96px] px-1 text-center font-mono text-[11px] font-semibold leading-none"
+              style={currentDept ? { color: currentDept.color } : undefined}
+            >
+              {currentDept?.name ?? 'All pillars'}
+            </span>
             <button
               onClick={() => step(1)}
               aria-label="Next department"
               title="Next pillar (→)"
-              className="absolute right-2 top-1/2 z-20 flex h-32 w-12 -translate-y-1/2 items-center justify-center rounded-sm-t border border-os-border bg-os-bg/70 text-os-muted backdrop-blur transition-colors hover:border-os-border-strong hover:text-os-text"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-os-muted transition-colors hover:bg-os-surface hover:text-os-text"
             >
-              <ChevronRight className="h-7 w-7" />
+              <ChevronRight className="h-5 w-5" />
             </button>
-          </>
+          </div>
         )}
       </div>
 
-      {/* detail panel — an absolute overlay so opening/closing a card never
-          resizes the graph area (that reflow was the back-and-forth glitch) */}
+      {/* detail panel — a FLOATING inset card on the left (the operator: not
+          edge-to-edge top-to-bottom, a bit wider, don't blanket the tree). It
+          stays an absolute overlay (opening/closing never reflows the graph —
+          that reflow was the old back-and-forth glitch); the top/bottom insets
+          keep it clear of the top controls and the bottom-center nav. Its own
+          body scrolls on hover (bounded flex height). */}
       {hasDetail && (
-        <aside className="absolute right-0 top-0 z-30 flex h-full w-[300px] flex-col border-l border-os-border-strong bg-os-bg/95 shadow-lg backdrop-blur max-[820px]:inset-x-0 max-[820px]:bottom-0 max-[820px]:top-auto max-[820px]:max-h-[62vh] max-[820px]:w-full max-[820px]:rounded-t-lg-t max-[820px]:border-l-0 max-[820px]:border-t">
+        <aside className="absolute bottom-6 left-4 top-16 z-30 flex w-[400px] flex-col overflow-hidden rounded-lg-t border border-os-border-strong bg-os-bg/95 shadow-lg backdrop-blur max-[860px]:inset-x-2 max-[860px]:bottom-2 max-[860px]:top-auto max-[860px]:h-[70vh] max-[860px]:w-auto">
           {/* the trail: node → pillar (this) → home. Same affordance inline. */}
           <button
             onClick={onBack}
@@ -181,11 +247,9 @@ export function KnowledgeGraphFullscreen({
               Back · <span style={currentDept ? { color: currentDept.color } : undefined}>{currentDept?.name ?? 'graph'}</span>
             </span>
           </button>
-          {toolWiki ? (
-            <ToolDetailCard wiki={toolWiki} onClose={onBack} />
-          ) : (
-            extraDetail ?? null
-          )}
+          <div className="min-h-0 flex-1 overflow-hidden">
+            {toolWiki ? <ToolDetailCard wiki={toolWiki} onClose={onBack} /> : extraDetail ?? null}
+          </div>
         </aside>
       )}
     </div>

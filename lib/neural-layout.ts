@@ -4,7 +4,7 @@ import { SELF_ID, type KGNodeKind, type KnowledgeGraph } from '@/lib/knowledge-g
  * The horizontal "neural network" projection of the SAME knowledge graph the
  * radial view draws: a feedforward stack read left to right —
  *
- *   tools (labeled inputs) → workers → SOP tasks → pillars → Notes (output)
+ *   tools (labeled inputs) → workers → SOP tasks → pillars → Obsidian (output)
  *
  * Pure layout math: layer membership, node positions on a fixed canvas, and
  * the adjacent-layer "weight" strands (deterministic hash-signed, magnitude
@@ -53,6 +53,9 @@ const LAYER_OF_KIND: Record<KGNodeKind, number | null> = {
   task: 2,
   team: 3,
   self: 4,
+  // board agents carry no task/tool wiring — they'd be isolated dots in the
+  // network lens, so they sit that lens out
+  board: null,
 };
 
 const LAYER_META: { kind: NeuralLayerKind; name: string }[] = [

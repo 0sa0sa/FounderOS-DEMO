@@ -160,17 +160,23 @@ export function Sidebar() {
       style={{ width: collapsed ? COLLAPSED_W : width }}
     >
       <div
-        className={`flex items-center pb-[18px] pt-5 ${
-          collapsed ? 'justify-center px-0' : 'justify-between gap-[11px] px-[18px]'
+        className={`flex pb-[18px] pt-5 ${
+          collapsed ? 'flex-col items-center gap-2 px-0' : 'items-center justify-between px-[18px]'
         }`}
       >
-        {/* the mark stays in both shapes; the wordmark is what folds away */}
-        <OsMark size={collapsed ? 24 : 34} className="shrink-0" />
-        {!collapsed && (
-          <div>
-            <div className="text-[13px] font-bold tracking-[0.14em]">FOUNDER OS</div>
-            <div className="mt-[3px] whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.16em] text-os-dim">
-              v3 · Operator Mode
+        {/* Collapsed, the mark IS the identity: the wordmark is gone, so the
+            mark carries it and the toggle stacks underneath (34px plus a 28px
+            button will not sit side by side in a 56px rail). */}
+        {collapsed ? (
+          <OsMark size={30} className="shrink-0" />
+        ) : (
+          <div className="flex items-center gap-[11px]">
+            <OsMark size={34} className="shrink-0" />
+            <div>
+              <div className="text-[13px] font-bold tracking-[0.14em]">FOUNDER OS</div>
+              <div className="mt-[3px] whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.16em] text-os-dim">
+                v3 · Operator Mode
+              </div>
             </div>
           </div>
         )}

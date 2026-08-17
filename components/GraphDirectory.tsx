@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronLeft, ChevronRight, ClipboardList, User, UserRound, Wrench, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardList, UserRound, Wrench, type LucideIcon, Bot} from 'lucide-react';
 import type { DirectoryGroup } from '@/lib/knowledge-graph';
 
 /**
@@ -13,7 +13,7 @@ import type { DirectoryGroup } from '@/lib/knowledge-graph';
  */
 
 const GROUP_ICON: Record<DirectoryGroup['kind'], LucideIcon> = {
-  employee: User,
+  employee: Bot,
   person: UserRound,
   task: ClipboardList,
   tool: Wrench,

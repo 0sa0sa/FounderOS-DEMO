@@ -746,3 +746,92 @@ body {
 html.conductor-dragging .os-shell {
   transition: none;
 }
+
+/* G-Brain graph motion: flowing synapses on the edges, orbiting live agents,
+   breathing task nodes, and the synthesizing shimmer. */
+@keyframes kg-synapse-flow {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes agent-orbit {
+  to { --agent-angle: 360deg; }
+}
+@keyframes task-breathe {
+  0%, 100% {
+    border-color: color-mix(in oklab, var(--ok) 30%, var(--border));
+    background-color: transparent;
+  }
+  50% {
+    border-color: var(--ok);
+    background-color: color-mix(in oklab, var(--ok) 9%, transparent);
+  }
+}
+@keyframes task-dot-flash {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+@keyframes synth-sweep {
+  from { background-position: 180% 0; }
+  to { background-position: -20% 0; }
+}
+.kg-synapse {
+  stroke-dasharray: 0.14 0.86;
+  animation: kg-synapse-flow 5s linear infinite;
+  animation-delay: var(--kg-syn-delay, 0s);
+  opacity: 0.55;
+}
+.kg-synapse-sm {
+  stroke-dasharray: 0.07 0.93;
+  animation: kg-synapse-flow 4s linear infinite;
+  animation-delay: var(--kg-syn-delay, 0s);
+  opacity: 0.38;
+}
+.agent-live {
+  position: relative;
+  /* the fallback: a static green edge if the mask or @property is unsupported */
+  border-color: color-mix(in oklab, var(--ok) 45%, var(--border));
+}
+.agent-live::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--agent-angle),
+    transparent 0turn,
+    transparent 0.55turn,
+    color-mix(in oklab, var(--ok) 70%, transparent) 0.78turn,
+    var(--ok) 0.92turn,
+    transparent 1turn
+  );
+  /* keep only the 1px ring: fill minus content box */
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: agent-orbit 2.4s linear infinite;
+  pointer-events: none;
+}
+.task-live {
+  animation: task-breathe 1.5s ease-in-out infinite;
+}
+.task-live-dot {
+  animation: task-dot-flash 1.5s ease-in-out infinite;
+}
+.synth-shimmer {
+  background: linear-gradient(90deg, var(--dim) 0%, var(--text) 50%, var(--dim) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: synth-sweep 1.6s linear infinite;
+}

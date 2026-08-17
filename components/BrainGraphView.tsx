@@ -36,11 +36,11 @@ const NeuralGraph = dynamic(() => import('@/components/NeuralGraph').then((m) =>
  * View switch for the /brain knowledge graph: the radial six-pillar wheel
  * (default) or the horizontal neural-network projection of the same data.
  */
-export function BrainGraphView(props: ComponentProps<typeof KnowledgeGraphType>) {
+export function BrainGraphView({ fill, ...props }: ComponentProps<typeof KnowledgeGraphType>) {
   const [view, setView] = useState<'radial' | 'neural'>('radial');
   return (
-    <div>
-      <div className="mb-2 flex items-center gap-1">
+    <div className={fill ? 'flex h-full flex-col' : undefined}>
+      <div className="mb-2 flex shrink-0 items-center gap-1">
         {(
           [
             { id: 'radial', label: 'Radial' },
@@ -61,18 +61,20 @@ export function BrainGraphView(props: ComponentProps<typeof KnowledgeGraphType>)
           </button>
         ))}
       </div>
-      {view === 'radial' ? (
-        <KnowledgeGraph {...props} />
-      ) : (
-        <NeuralGraph
-          graph={props.graph}
-          agents={props.agents}
-          departments={props.departments}
-          people={props.people}
-          tasks={props.tasks}
-          runsByAgent={props.runsByAgent}
-        />
-      )}
+      <div className={fill ? 'min-h-0 flex-1' : undefined}>
+        {view === 'radial' ? (
+          <KnowledgeGraph fill={fill} {...props} />
+        ) : (
+          <NeuralGraph
+            graph={props.graph}
+            agents={props.agents}
+            departments={props.departments}
+            people={props.people}
+            tasks={props.tasks}
+            runsByAgent={props.runsByAgent}
+          />
+        )}
+      </div>
     </div>
   );
 }

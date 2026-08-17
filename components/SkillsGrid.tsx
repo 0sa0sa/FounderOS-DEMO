@@ -9,6 +9,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import {
   X,
+  Download,
   Flame,
   Code2,
   Image as ImageIcon,
@@ -37,7 +38,19 @@ export type SkillCard = {
 };
 
 const STATUS: Record<string, string> = { live: 'var(--ok)', learning: 'var(--warn)', planned: 'var(--text-3)' };
-const GROUP_ORDER = ['Spec · build · review', 'Engineering', 'Sales', 'Content', 'Ops', 'Creative', 'Skills', 'Firecrawl'];
+const GROUP_ORDER = [
+  'Spec · build · review',
+  'Engineering',
+  'Sales',
+  'Content',
+  'Ops',
+  'Creative',
+  'Skills',
+  'Firecrawl',
+  'Operator · Sales',
+  'Operator · Content',
+  'Operator · Ops',
+];
 
 /** The tool/nature each skill runs on, as an icon. */
 function skillIcon(card: SkillCard): LucideIcon {
@@ -58,7 +71,7 @@ function skillIcon(card: SkillCard): LucideIcon {
     case 'review':
       return SearchCheck;
   }
-  switch (card.group) {
+  switch (card.group.replace(/^Operator · /, '')) {
     case 'Sales':
       return Target;
     case 'Content':
@@ -140,6 +153,21 @@ export function SkillsGrid({ cards, sourceNote }: { cards: SkillCard[]; sourceNo
 
   const ViewingIcon = viewing ? skillIcon(viewing) : Sparkles;
 
+  /** Save the open SKILL.md: real skills stream from the API, inline docs download as a blob. */
+  const download = (card: SkillCard) => {
+    if (card.markdown == null) {
+      window.location.href = `/api/skills/${encodeURIComponent(card.id)}?download=1`;
+      return;
+    }
+    const blob = new Blob([card.markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${card.id}-SKILL.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
       <p className="mb-4 font-mono text-[11px] text-os-dim">{sourceNote}</p>
@@ -180,9 +208,19 @@ export function SkillsGrid({ cards, sourceNote }: { cards: SkillCard[]; sourceNo
                 <ViewingIcon className="h-3.5 w-3.5 shrink-0 text-os-accent" />
                 <span className="truncate">{viewing.filePath}</span>
               </span>
-              <button onClick={() => setViewing(null)} aria-label="Close" className="shrink-0 text-os-dim transition-colors hover:text-os-text">
-                <X className="h-4 w-4" />
-              </button>
+              <span className="flex shrink-0 items-center gap-3">
+                <button
+                  onClick={() => download(viewing)}
+                  title="Download SKILL.md"
+                  className="flex items-center gap-1.5 rounded-md border border-os-border px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-os-dim transition-colors hover:border-os-border-strong hover:text-os-text"
+                >
+                  <Download className="h-3 w-3" />
+                  skill.md
+                </button>
+                <button onClick={() => setViewing(null)} aria-label="Close" className="shrink-0 text-os-dim transition-colors hover:text-os-text">
+                  <X className="h-4 w-4" />
+                </button>
+              </span>
             </div>
             <div className="overflow-y-auto px-5 py-4">
               {md === null ? (

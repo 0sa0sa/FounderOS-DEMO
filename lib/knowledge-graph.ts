@@ -2,8 +2,8 @@ import type { Agent, Department, Person, SopTask } from '@/lib/schemas';
 import { lifeAreaForDepartment } from '@/lib/life-map';
 
 /**
- * The operating-knowledge graph that powers the /brain force graph — Alex's
- * life and the org in one. Five concentric rings: Alex at the core (ring 0),
+ * The operating-knowledge graph that powers the /brain force graph — the operator's
+ * life and the org in one. Five concentric rings: the operator at the core (ring 0),
  * the life pillars / teams tinted by their life-area color (ring 1), the
  * written-out SOP tasks — the actual jobs (ring 2), the workers who do them —
  * AI agents AND human employees (ring 3), and the software tools they use
@@ -12,17 +12,27 @@ import { lifeAreaForDepartment } from '@/lib/life-map';
  * icons live in the component, colors are carried on the nodes that have a
  * brand one.
  */
-export type KGNodeKind = 'self' | 'team' | 'task' | 'employee' | 'person' | 'tool';
+export type KGNodeKind = 'self' | 'team' | 'task' | 'employee' | 'person' | 'tool' | 'board';
+
+/** Executive title per department — the pillar node IS the department-head agent. */
+export const DEPT_EXEC_TITLES: Record<string, string> = {
+  'dept-sales': 'CRO',
+  'dept-marketing-growth': 'CMO',
+  'dept-tech': 'CTO',
+  'dept-finance': 'CFO',
+  'dept-comms': 'CCO',
+  'dept-clients': 'COO',
+};
 
 export type KGNode = {
   id: string;
   kind: KGNodeKind;
   label: string;
-  ring: number; // 0 = Alex core → 4 = outer (tools)
+  ring: number; // 0 = operator core → 4 = outer (tools)
   color?: string; // life-area tint (teams)
 };
 
-export type KGEdgeKind = 'pillar' | 'sop' | 'does' | 'member' | 'uses' | 'reports';
+export type KGEdgeKind = 'pillar' | 'sop' | 'does' | 'member' | 'uses' | 'reports' | 'board';
 
 export type KGEdge = {
   source: string;
@@ -32,7 +42,7 @@ export type KGEdge = {
 
 export type KnowledgeGraph = { nodes: KGNode[]; edges: KGEdge[] };
 
-const RING: Record<KGNodeKind, number> = { self: 0, team: 1, task: 2, employee: 3, person: 3, tool: 4 };
+const RING: Record<KGNodeKind, number> = { self: 0, board: 1, team: 1, task: 2, employee: 3, person: 3, tool: 4 };
 
 export const SELF_ID = 'self';
 
@@ -143,13 +153,24 @@ export function buildKnowledgeGraph(
   departments: Department[],
   people: Person[] = [],
   tasks: SopTask[] = [],
+  boardAgents: { id: string; name: string }[] = [],
 ): KnowledgeGraph {
   const nodes: KGNode[] = [];
   const edges: KGEdge[] = [];
 
-  // Alex at the core — every pillar hangs off him (the life-at-the-core idea
+  // the operator at the core — every pillar hangs off him (the life-at-the-core idea
   // folded in from the old life map).
   nodes.push({ id: SELF_ID, kind: 'self', label: 'Alex', ring: RING.self });
+
+  // Live Paperclip board agents (Conductor, Forge, the Hermes pool, …) orbit
+  // the operator as an inner ring — real seats from the board API, [] when it's
+  // unreachable, so nothing here is larp. The five department LEADS are not in
+  // this list: the pillar node IS that agent. Sorted so the ring's seat order
+  // is deterministic.
+  for (const b of [...boardAgents].sort((a, z) => a.name.localeCompare(z.name))) {
+    nodes.push({ id: `board:${b.id}`, kind: 'board', label: b.name, ring: RING.board });
+    edges.push({ source: SELF_ID, target: `board:${b.id}`, kind: 'board' });
+  }
 
   // Teams / life pillars (ring 1) — only departments that actually have workers,
   // tinted with their life-area color.
@@ -177,7 +198,7 @@ export function buildKnowledgeGraph(
 
   // First pass: which departments touch each tool? A tool used from several
   // departments is DUPLICATED — one copy per department — so its lines stay
-  // local instead of crossing the wheel (Alex: no messy long edges).
+  // local instead of crossing the wheel (no messy long edges).
   const deptsOfTool = new Map<string, Set<string>>();
   const workerRows: { nodeId: string; kind: 'employee' | 'person'; label: string; deptId: string; tools: string[] }[] = [
     ...agents.map((a) => ({ nodeId: `emp:${a.id}`, kind: 'employee' as const, label: a.name, deptId: a.departmentId, tools: a.tools })),
