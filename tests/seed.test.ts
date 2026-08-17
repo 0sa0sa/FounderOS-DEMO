@@ -67,7 +67,7 @@ describe('seedDatabase', () => {
       'crm-pulse',
       'launchpad-cohort-sales',
       'vantage-sales',
-      'vantage-fanbasis',
+      'vantage-paykit',
       'sales-calls-data',
     ]) {
       expect(byId.get(id)).toBe('dept-sales');
@@ -77,8 +77,8 @@ describe('seedDatabase', () => {
       'payments-pulse',
       'stripe-sales',
       'processor-confirmation',
-      'fanbasis-sales',
-      'pava-financing',
+      'paykit-sales',
+      'flexpay-financing',
     ]) {
       expect(byId.get(id)).toBe('dept-finance');
     }
@@ -86,11 +86,11 @@ describe('seedDatabase', () => {
     // Marketing/Growth: the social/content crew
     for (const id of [
       'social-agent',
-      'zernio-publisher',
-      'arcads-creative',
-      'remotion-editor',
-      'higgsfield-creative',
-      'manychat-mcp',
+      'postly-publisher',
+      'adsmith-creative',
+      'reelkit-editor',
+      'renderly-creative',
+      'dmflow-mcp',
     ]) {
       expect(byId.get(id)).toBe('dept-marketing-growth');
     }
@@ -122,7 +122,7 @@ describe('seedDatabase', () => {
       expect(byId.get(worker)?.tier).toBe('worker');
     }
     // Studio: social media + content creation
-    for (const worker of ['zernio-publisher', 'arcads-creative', 'remotion-editor', 'higgsfield-creative', 'manychat-mcp']) {
+    for (const worker of ['postly-publisher', 'adsmith-creative', 'reelkit-editor', 'renderly-creative', 'dmflow-mcp']) {
       expect(byId.get(worker)?.parentId).toBe('social-agent');
     }
     // Sales: CRM / account lanes hang off the sales instance
@@ -135,10 +135,10 @@ describe('seedDatabase', () => {
       expect(byId.get(worker)?.parentId).toBe('sales-agent');
       expect(byId.get(worker)?.tier).toBe('worker');
     }
-    expect(byId.get('vantage-fanbasis')?.parentId).toBe('vantage-sales');
-    expect(byId.get('vantage-fanbasis')?.tier).toBe('worker');
+    expect(byId.get('vantage-paykit')?.parentId).toBe('vantage-sales');
+    expect(byId.get('vantage-paykit')?.tier).toBe('worker');
     // Finances: the payment processors now report to Payments Pulse
-    for (const worker of ['stripe-sales', 'processor-confirmation', 'fanbasis-sales', 'pava-financing']) {
+    for (const worker of ['stripe-sales', 'processor-confirmation', 'paykit-sales', 'flexpay-financing']) {
       expect(byId.get(worker)?.parentId).toBe('payments-pulse');
       expect(byId.get(worker)?.tier).toBe('worker');
     }
@@ -146,7 +146,7 @@ describe('seedDatabase', () => {
     for (const worker of ['markdown-auditor', 'vector-auditor']) {
       expect(byId.get(worker)?.parentId).toBe('data-agent');
     }
-    // Top-level agents are instance slots awaiting OpenClaw/Claude Code bindings
+    // Top-level agents are instance slots awaiting Clawline/Claude Code bindings
     expect(byId.get('comms-agent')?.parentId).toBeNull();
     expect(byId.get('comms-agent')?.instance).not.toBe('');
   });

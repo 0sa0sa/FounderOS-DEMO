@@ -12,19 +12,19 @@
 export type ToolBrand = { slug: string; name: string };
 
 export const TOOL_BRANDS: Record<string, ToolBrand> = {
-  arcads: { slug: 'arcads', name: 'Arcads' },
-  attio: { slug: 'attio', name: 'Attio' },
+  adsmith: { slug: 'adsmith', name: 'Adsmith' },
+  ledger: { slug: 'ledger', name: 'Ledger' },
   calendar: { slug: 'googlecalendar', name: 'Google Calendar' },
   ghl: { slug: 'gohighlevel', name: 'GoHighLevel' },
   gmail: { slug: 'gmail', name: 'Gmail' },
-  manychat: { slug: 'manychat', name: 'ManyChat' },
+  dmflow: { slug: 'dmflow', name: 'DMFlow' },
   notion: { slug: 'notion', name: 'Notion' },
   'proposal-gen': { slug: 'proposal-gen', name: 'Proposal Generator' },
   skool: { slug: 'skool', name: 'Skool' },
   slack: { slug: 'slack', name: 'Slack' },
   trakyo: { slug: 'trakyo', name: 'Trakyo' },
   webinarjam: { slug: 'webinarjam', name: 'WebinarJam' },
-  zernio: { slug: 'zernio', name: 'Zernio' },
+  postly: { slug: 'postly', name: 'Postly' },
 };
 
 export function toolBrand(toolId: string): ToolBrand {

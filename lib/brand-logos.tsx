@@ -7,7 +7,7 @@ import * as simpleIcons from 'simple-icons';
  *   2. simple-icons — the canonical single-colour glyph + official brand hex,
  *      looked up by slug (`gmail` -> `siGmail`, `googlecalendar` -> ...).
  *   3. LETTERMARK — an intentional coloured initial tile for niche brands with
- *      no logo in either source (Attio, Beehiiv, our own aliases).
+ *      no logo in either source (Ledger, Beehiiv, our own aliases).
  * A slug that matches none of the three is a typo — `hasBrandMark` returns
  * false so the catalog test catches it.
  */
@@ -45,20 +45,26 @@ const HANDMADE: Record<string, { viewBox: string; node: React.ReactNode }> = {
 // slug -> brand hex used to tint the tile + initial.
 const LETTERMARK: Record<string, string> = {
   salesforce: '#00A1E0',
+  ledger: '#4A6CF7',
   attio: '#4A6CF7',
+  zernio: '#6E56CF',
+  arcads: '#FF6A3D',
+  fanbasis: '#22C55E',
+  pava: '#A855F7',
+  manychat: '#0084FF',
   beehiiv: '#FFC864',
   openai: '#10A37F',
   plaid: '#000000',
   onedrive: '#0078D4',
   canva: '#00C4CC',
   gohighlevel: '#2A9D8F',
-  zernio: '#6E56CF',
-  arcads: '#FF6A3D',
-  fanbasis: '#22C55E',
+  postly: '#6E56CF',
+  adsmith: '#FF6A3D',
+  paykit: '#22C55E',
   trakyo: '#EAB308',
   webinarjam: '#2563EB',
-  pava: '#A855F7',
-  manychat: '#0084FF',
+  flexpay: '#A855F7',
+  dmflow: '#0084FF',
   skool: '#E4573D',
   'proposal-gen': '#00764f',
 };

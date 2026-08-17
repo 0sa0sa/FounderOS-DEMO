@@ -16,14 +16,15 @@ describe('/brain header capture + graph placement', () => {
     expect(page).not.toMatch(/<section[^>]*>\s*<BrainDump \/>/);
   });
 
-  test('the knowledge graph is the first section after the header', () => {
+  test('the graph is the only thing under the header, and it fills the viewport', () => {
     const page = read('app/brain/page.tsx');
     const header = page.indexOf('<PageHeader');
-    const graph = page.indexOf('Knowledge graph');
-    const firstSection = page.indexOf('<section', header);
+    const graph = page.indexOf('<BrainGraphView');
     expect(graph).toBeGreaterThan(header);
-    // the first section on the page IS the graph section
-    expect(page.indexOf('BrainGraphView', firstSection)).toBeLessThan(page.indexOf('</section>', firstSection));
+    // no boxed section wrapper any more: the canvas IS the page
+    expect(page).not.toContain('<section');
+    expect(page).toContain('fill');
+    expect(page).toMatch(/h-\[calc\(100dvh/);
   });
 
   test('BrainDump has a compact mode with document drop that reads files as text', () => {

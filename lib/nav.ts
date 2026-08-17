@@ -4,6 +4,7 @@
  * from the same visible order, so the two can never drift apart again.
  */
 import {
+  Stethoscope,
   Home,
   MessageSquare,
   Share2,
@@ -44,7 +45,13 @@ export const NAV_AGENTS: NavItem[] = [
 ];
 
 // The knowledge layer the agents draw on.
-export const NAV_INTELLIGENCE: NavItem[] = [{ href: '/brain', label: 'G-Brain', icon: Brain }];
+// The knowledge layer the agents draw on. G-Brain is the pure knowledge graph;
+// Doctor holds the engine's health readouts (pillar health, doctor, storage
+// layers, pipeline, query path) so the graph tab stays a single view.
+export const NAV_INTELLIGENCE: NavItem[] = [
+  { href: '/brain', label: 'G-Brain', icon: Brain },
+  { href: '/doctor', label: 'Doctor', icon: Stethoscope },
+];
 
 export const NAV_SYSTEM: NavItem[] = [
   { href: '/integrations', label: 'Connections', icon: Plug },

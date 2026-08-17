@@ -5,7 +5,7 @@
  *
  * Attribution is honest: keyword classification over the entry touch, with
  * `word_of_mouth` as the explicit catch-all for what nothing tracked. Trakyo
- * UTM links (ManyChat sends, YouTube titles) and the GHL `source` field feed
+ * UTM links (DMFlow sends, YouTube titles) and the GHL `source` field feed
  * the same labels, so live attribution sharpens as those land — no schema
  * change needed.
  */
@@ -41,12 +41,12 @@ const SEGMENT_INDEX: Record<FunnelAcquisition, number> = Object.fromEntries(
 /**
  * Keyword families, first match wins. Order matters: youtube before form so
  * "long-form" stays YouTube; explicit word-of-mouth before the form fallback.
- * Instagram owns Meta paid + ManyChat + TikTok short-form (Alex runs ads
+ * Instagram owns Meta paid + DMFlow + TikTok short-form (Alex runs ads
  * and DM automations through the IG/FB machine).
  */
 const MATCHERS: { id: FunnelAcquisition; re: RegExp }[] = [
   { id: 'youtube', re: /youtube|\byt\b|long-form/i },
-  { id: 'instagram', re: /instagram|\big\b|insta\b|reel|tiktok|meta ad|manychat|facebook|\bfb\b/i },
+  { id: 'instagram', re: /instagram|\big\b|insta\b|reel|tiktok|meta ad|dmflow|facebook|\bfb\b/i },
   { id: 'newsletter', re: /newsletter|beehiiv/i },
   { id: 'x_linkedin', re: /twitter|\bx thread|\bx post|\bx dm|\bon x\b|linkedin/i },
   { id: 'word_of_mouth', re: /referr|word of mouth|recommend/i },

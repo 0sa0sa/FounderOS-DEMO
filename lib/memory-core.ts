@@ -555,3 +555,63 @@ export function lerpRect(cur: Rect, target: Rect, t: number): Rect {
     h: cur.h + (target.h - cur.h) * t,
   };
 }
+
+/**
+ * A generated stand-in constellation for environments with no brain-store on
+ * disk (e.g. a fresh fork or a hosted demo). Deterministic, zero personal data — generic
+ * knowledge domains so the core still reads as a living second brain. Local dev
+ * always prefers the real distilled store; this is only the empty-store fallback.
+ */
+export function demoMemoryGraph(): MemoryGraph {
+  const rnd = (s: string, i: number): number => {
+    let h = 2166136261 ^ i;
+    for (let k = 0; k < s.length; k++) {
+      h ^= s.charCodeAt(k);
+      h = Math.imul(h, 16777619);
+    }
+    return ((h >>> 0) % 100000) / 100000;
+  };
+  const domains: { folder: string; titles: string[] }[] = [
+    { folder: 'Sales Playbooks', titles: ['Cold Outreach Framework', 'Discovery Call Script', 'Objection Handling', 'Pricing & Packaging', 'Follow-up Cadence', 'Proposal Template', 'Closing Checklist', 'ICP Definition', 'Negotiation Notes', 'Win/Loss Review', 'Referral Program', 'Case Study Bank', 'Sales Deck', 'Territory Plan', 'Commission Structure'] },
+    { folder: 'Growth & Marketing', titles: ['Content Engine', 'Paid Ads Playbook', 'Hook Library', 'Funnel Map', 'SEO Notes', 'Brand Voice', 'Launch Plan', 'Email Sequences', 'UGC Briefs', 'Analytics Notes', 'Landing Pages', 'Webinar Playbook', 'Influencer List', 'Retargeting', 'Newsletter Ops'] },
+    { folder: 'Product', titles: ['Roadmap', 'Feature Specs', 'User Research', 'Onboarding Flow', 'Changelog', 'Design System', 'API Notes', 'Bug Triage', 'Release Process', 'Product Metrics', 'Feature Flags', 'Analytics Events', 'Support Macros', 'Beta Program', 'Integrations'] },
+    { folder: 'Operations', titles: ['SOP Library', 'Hiring Playbook', 'Team Rituals', 'Vendor List', 'Tooling Stack', 'Incident Runbook', 'Weekly Cadence', 'Access & Security', 'Docs Index', 'Onboarding Kit', 'Payroll SOP', 'Legal Templates', 'Meeting Notes', 'OKRs', 'Vendor Contracts'] },
+    { folder: 'Finance', titles: ['Unit Economics', 'Cash Flow Model', 'Pricing Model', 'Invoicing SOP', 'Runway Tracker', 'Expense Policy', 'Revenue Report', 'Forecast', 'Payment Processors', 'Bookkeeping', 'Tax Notes', 'Budget', 'Investor Updates', 'Chargebacks', 'Financial Model'] },
+    { folder: 'Client Delivery', titles: ['Kickoff Template', 'Scope of Work', 'Weekly Report', 'QBR Deck', 'Retention Playbook', 'Escalation Path', 'Deliverables Tracker', 'Health Scores', 'Renewal Motion', 'Case Studies', 'Onboarding Checklist', 'SLA Terms', 'Feedback Loop', 'Upsell Paths', 'Offboarding'] },
+    { folder: 'Research', titles: ['Market Landscape', 'Competitor Teardown', 'Customer Interviews', 'Trends', 'Positioning', 'Whitepaper Notes', 'Data Sources', 'Survey Results', 'Experiment Log', 'Insights', 'Pricing Study', 'Persona Docs', 'Jobs to be Done', 'Churn Analysis', 'Benchmark Report'] },
+    { folder: 'Automation', titles: ['Agent Registry', 'Workflow Map', 'Prompt Library', 'Integration Notes', 'Trigger Rules', 'Eval Harness', 'Guardrails', 'Agent Runbook', 'Model Notes', 'Cost Tracking', 'Webhook Map', 'Retry Logic', 'Data Pipeline', 'Alerting Rules', 'Access Scopes'] },
+  ];
+  const nodes: MemoryNode[] = [];
+  const edges: MemoryEdge[] = [];
+  // Seed positions are only a starting scatter near the center; the real
+  // forceLayout below organically re-places everything, so the field looks
+  // exactly like the distilled vault (organic blobs filling the disc, not a
+  // ring), not the geometric pattern a fixed radial layout produced.
+  const seed = (id: string) => ({ vx: (rnd(id, 8) - 0.5) * 0.4, vy: (rnd(id, 9) - 0.5) * 0.4 });
+  domains.forEach((d, di) => {
+    nodes.push({ id: `folder:${d.folder}`, type: 'folder', label: d.folder, folder: d.folder, excerpt: '', wordCount: 0, chunks: 0, ...seed(d.folder), cluster: di, links: d.titles.length });
+    d.titles.forEach((t) => {
+      const id = `page:${d.folder}/${t}`;
+      nodes.push({ id, type: 'page', label: t, folder: d.folder, excerpt: `${t} — a ${d.folder} reference note in the knowledge base.`, wordCount: 200 + Math.floor(rnd(id, 3) * 1400), chunks: 1 + Math.floor(rnd(id, 4) * 5), ...seed(id), cluster: di, links: 0 });
+      edges.push({ source: `folder:${d.folder}`, target: id, type: 'member' });
+    });
+  });
+  const pages = nodes.filter((x) => x.type === 'page');
+  pages.forEach((p) => {
+    // 4–6 links each: with incoming links too, every note clears the memNodeR
+    // cap and renders at full size (like the real vault, median ~7 links, nodes
+    // at the ~1.4 max radius). Links also drive the spring layout's clustering.
+    const k = 4 + Math.floor(rnd(p.id, 5) * 3);
+    for (let j = 0; j < k; j++) {
+      const target = pages[Math.floor(rnd(p.id, 11 + j) * pages.length)];
+      if (target && target.id !== p.id) {
+        edges.push({ source: p.id, target: target.id, type: 'wikilink' });
+        p.links += 1;
+        target.links += 1;
+      }
+    }
+  });
+  // organic force-directed placement — the SAME layout the distilled vault uses,
+  // so the demo core reads identically (blobs, filled centre, no empty middle).
+  return { nodes: forceLayout(nodes, edges), edges };
+}

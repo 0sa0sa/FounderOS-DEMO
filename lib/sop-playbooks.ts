@@ -392,7 +392,7 @@ const PLAYBOOKS: Record<string, SopPlaybook> = {
       fullyAutonomous: 'It inspects, attaches next actions, preps payment links, and logs stage changes same-day.',
     },
     theHuman: 'Marco works the deals. The agent makes sure none go quiet unnoticed.',
-    buildNotes: 'Past 7 days in stage = stalled. Prep payment links across PayKit/Stripe/PAVA before calls, not during.',
+    buildNotes: 'Past 7 days in stage = stalled. Prep payment links across PayKit/Stripe/FlexPay before calls, not during.',
     skill: { name: 'Pipeline Keeper', slug: 'pipeline-keeper', blurb: 'Ranks stalled deals, attaches next actions, and briefs the closer daily.' },
     status: 'in-development',
   },
@@ -551,12 +551,12 @@ const PLAYBOOKS: Record<string, SopPlaybook> = {
     skill: { name: 'Payment Confirmer', slug: 'payment-confirmer', blurb: 'Verifies a payment claim against the processor API before marking a deal paid.' },
     status: 'ready-to-run',
   },
-  'sop-pava': {
+  'sop-flexpay': {
     autonomy: 'fully-autonomous',
     categoryPath: 'Finance · Financing',
-    description: 'Payment plans pulled from PAVA and attached to live offers before the call.',
+    description: 'Payment plans pulled from FlexPay and attached to live offers before the call.',
     breaksInto: ['profile-reader', 'plan-matcher', 'acceptance-tracker'],
-    buildsOn: ['PAVA API', 'Deal Size'],
+    buildsOn: ['FlexPay API', 'Deal Size'],
     replaces: 'A finance rep manually quoting plan options per deal.',
     ladder: {
       humanLed: 'You look up financing terms manually per deal.',
@@ -565,7 +565,7 @@ const PLAYBOOKS: Record<string, SopPlaybook> = {
     },
     theHuman: 'You decide what to offer. It surfaces the plans that fit and tracks what closes.',
     buildNotes: 'Attach terms BEFORE the call, not during. Track acceptance rates so pricing keeps sharpening.',
-    skill: { name: 'Financing Quoter', slug: 'financing-quoter', blurb: 'Matches PAVA plans to a buyer profile and attaches terms to the offer.' },
+    skill: { name: 'Financing Quoter', slug: 'financing-quoter', blurb: 'Matches FlexPay plans to a buyer profile and attaches terms to the offer.' },
     status: 'not-started',
   },
   'sop-payments-pulse': {

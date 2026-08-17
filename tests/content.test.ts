@@ -13,7 +13,7 @@ describe('contentAgents', () => {
     const crew = contentAgents(db.agents.all());
     expect(crew[0].id).toBe('social-agent');
     const ids = crew.map((a) => a.id);
-    for (const id of ['social-agent', 'zernio-publisher', 'arcads-creative', 'remotion-editor', 'higgsfield-creative', 'manychat-mcp']) {
+    for (const id of ['social-agent', 'postly-publisher', 'adsmith-creative', 'reelkit-editor', 'renderly-creative', 'dmflow-mcp']) {
       expect(ids).toContain(id);
     }
   });

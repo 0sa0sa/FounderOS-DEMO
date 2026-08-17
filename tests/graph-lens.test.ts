@@ -57,7 +57,7 @@ describe('graph lenses — Alex taxonomy (2026-07-12)', () => {
   test('venture team lenses light their rosters', () => {
     const mer = lensNodeSet('fn-vantage', ctx);
     expect(mer.has('emp:vantage-sales')).toBe(true);
-    expect(mer.has('emp:vantage-fanbasis')).toBe(true);
+    expect(mer.has('emp:vantage-paykit')).toBe(true);
     const aa = lensNodeSet('fn-launchpad-cohort', ctx);
     expect(aa.has('emp:launchpad-cohort-sales')).toBe(true);
   });
@@ -71,10 +71,10 @@ describe('graph lenses — Alex taxonomy (2026-07-12)', () => {
   });
 
   test('specific action mappings hold', () => {
-    expect(lensNodeSet('act-ad-creation', ctx).has('emp:arcads-creative')).toBe(true);
+    expect(lensNodeSet('act-ad-creation', ctx).has('emp:adsmith-creative')).toBe(true);
     expect(lensNodeSet('act-lead-generation', ctx).has('emp:sales-agent')).toBe(true);
-    expect(lensNodeSet('act-social-scheduler', ctx).has('emp:zernio-publisher')).toBe(true);
-    expect(lensNodeSet('act-ai-visuals', ctx).has('emp:higgsfield-creative')).toBe(true);
+    expect(lensNodeSet('act-social-scheduler', ctx).has('emp:postly-publisher')).toBe(true);
+    expect(lensNodeSet('act-ai-visuals', ctx).has('emp:renderly-creative')).toBe(true);
   });
 
   test('unknown lens returns an empty set, never throws', () => {

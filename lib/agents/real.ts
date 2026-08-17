@@ -23,7 +23,7 @@ import type { AgentRunResult, RuntimeAgent } from '@/lib/agents/runtime';
  * with setup instructions instead of pretending.
  *
  * Top-level agents are instance slots: when the dedicated host is live each one
- * becomes its own OpenClaw Hermes / Claude Code process and respond() routes
+ * becomes its own Clawline / Claude Code process and respond() routes
  * to that instance instead of the builtin implementation.
  */
 
@@ -116,7 +116,7 @@ export const realAgents: RuntimeAgent[] = [
   {
     id: 'conductor',
     name: 'Conductor',
-    description: 'Broadcast fan-out + instance host availability (OpenClaw gateway, Ollama, tmux) for future bindings.',
+    description: 'Broadcast fan-out + instance host availability (Clawline gateway, Ollama, tmux) for future bindings.',
     departmentId: 'dept-tech',
     async run() {
       const stack = await localStackStatus();
@@ -152,56 +152,56 @@ export const realAgents: RuntimeAgent[] = [
   {
     id: 'social-agent',
     name: 'Social Agent',
-    description: 'Aggregates the Zernio publishing and Arcads ad-generation workers.',
+    description: 'Aggregates the Postly publishing and Adsmith ad-generation workers.',
     departmentId: 'dept-marketing-growth',
     async run() {
-      const [zernio, arcads] = await Promise.all([zernioRun(), arcadsRun()]);
-      const live = [zernio, arcads].filter((r) => r.ok).length;
+      const [postly, adsmith] = await Promise.all([zernioRun(), arcadsRun()]);
+      const live = [postly, adsmith].filter((r) => r.ok).length;
       const queued = getDb().socialPosts.queued().length;
       const queueNote = queued > 0 ? `${queued} post${queued === 1 ? '' : 's'} queued for publish` : 'no posts queued';
       return {
         ok: live > 0,
-        summary: `${live}/2 core content APIs live · Zernio ${label(zernio)} · Arcads ${label(arcads)} · ${queueNote}`,
-        data: { zernio, arcads, queuedPosts: queued },
+        summary: `${live}/2 core content APIs live · Postly ${label(postly)} · Adsmith ${label(adsmith)} · ${queueNote}`,
+        data: { postly, adsmith, queuedPosts: queued },
       };
     },
   },
-  { id: 'zernio-publisher', name: 'Zernio Publisher', description: 'Six platforms under @founderos.ai via Zernio.', departmentId: 'dept-marketing-growth', run: zernioRun },
-  { id: 'arcads-creative', name: 'Arcads Creative', description: 'UGC ads for Vantage via the Arcads API.', departmentId: 'dept-marketing-growth', run: arcadsRun },
+  { id: 'postly-publisher', name: 'Postly Publisher', description: 'Six platforms under @founderos.ai via Postly.', departmentId: 'dept-marketing-growth', run: zernioRun },
+  { id: 'adsmith-creative', name: 'Adsmith Creative', description: 'UGC ads for Vantage via the Adsmith API.', departmentId: 'dept-marketing-growth', run: arcadsRun },
   {
-    id: 'remotion-editor',
-    name: 'Remotion Editor',
+    id: 'reelkit-editor',
+    name: 'Reelkit Editor',
     description: 'Editing and rendering pipeline for social clips, captions, and promotional cuts.',
     departmentId: 'dept-marketing-growth',
     async run() {
       const stack = await localStackStatus();
       return {
         ok: stack.state === 'connected',
-        summary: `Remotion/social editing lane mapped · local stack: ${stack.detail}`,
+        summary: `Reelkit/social editing lane mapped · local stack: ${stack.detail}`,
         data: stack.meta,
       };
     },
   },
   {
-    id: 'higgsfield-creative',
-    name: 'Higgsfield Creative',
-    description: 'Higgsfield creative generation for campaign visuals and product assets.',
+    id: 'renderly-creative',
+    name: 'Renderly Creative',
+    description: 'Renderly creative generation for campaign visuals and product assets.',
     departmentId: 'dept-marketing-growth',
     async run() {
       const stack = await localStackStatus();
       return {
         ok: stack.state === 'connected',
-        summary: `Higgsfield creative lane mapped · local stack: ${stack.detail}`,
+        summary: `Renderly creative lane mapped · local stack: ${stack.detail}`,
         data: stack.meta,
       };
     },
   },
   {
-    id: 'manychat-mcp',
-    name: 'ManyChat MCP',
-    description: 'ManyChat MCP/API lane for social DM automations and lead capture.',
+    id: 'dmflow-mcp',
+    name: 'DMFlow MCP',
+    description: 'DMFlow MCP/API lane for social DM automations and lead capture.',
     departmentId: 'dept-marketing-growth',
-    run: envIntegrationRun('ManyChat', 'MANYCHAT_API_KEY', 'DM automation and lead capture'),
+    run: envIntegrationRun('DMFlow', 'MANYCHAT_API_KEY', 'DM automation and lead capture'),
   },
 
   // ── Sales instance + pipeline worker ─────────────────────────────────
@@ -214,7 +214,7 @@ export const realAgents: RuntimeAgent[] = [
       const [crm, processors] = await Promise.all([attioStatus(), processorConfirmationRun()]);
       return {
         ok: crm.state === 'connected' || processors.ok,
-        summary: `Sales pipeline · Attio ${crm.state === 'connected' ? 'LIVE' : 'DOWN'} · processors ${label(processors)} · FanBasis/PAVA/calls lanes mapped`,
+        summary: `Sales pipeline · Ledger ${crm.state === 'connected' ? 'LIVE' : 'DOWN'} · processors ${label(processors)} · PayKit/FlexPay/calls lanes mapped`,
         data: { crm, processors },
       };
     },
@@ -260,23 +260,23 @@ export const realAgents: RuntimeAgent[] = [
   {
     id: 'vantage-sales',
     name: 'Vantage',
-    description: 'Vantage sales lane: pipeline, FanBasis context, payments, and call data.',
+    description: 'Vantage sales lane: pipeline, PayKit context, payments, and call data.',
     departmentId: 'dept-sales',
     run: plannedLaneRun('Vantage sales', 'connect Vantage-specific CRM/payment/call sources'),
   },
   {
-    id: 'fanbasis-sales',
-    name: 'FanBasis',
-    description: 'FanBasis offer/payment/customer context for Sales.',
+    id: 'paykit-sales',
+    name: 'PayKit',
+    description: 'PayKit offer/payment/customer context for Sales.',
     departmentId: 'dept-sales',
-    run: envIntegrationRun('FanBasis', 'FANBASIS_API_KEY', 'offers, customers, and payment context'),
+    run: envIntegrationRun('PayKit', 'FANBASIS_API_KEY', 'offers, customers, and payment context'),
   },
   {
-    id: 'vantage-fanbasis',
-    name: 'Vantage FanBasis',
-    description: 'FanBasis lane specifically under Vantage.',
+    id: 'vantage-paykit',
+    name: 'Vantage PayKit',
+    description: 'PayKit lane specifically under Vantage.',
     departmentId: 'dept-sales',
-    run: envIntegrationRun('Vantage FanBasis', 'FANBASIS_API_KEY', 'Vantage offer/payment context'),
+    run: envIntegrationRun('Vantage PayKit', 'FANBASIS_API_KEY', 'Vantage offer/payment context'),
   },
   { id: 'stripe-sales', name: 'Stripe', description: 'Stripe payment confirmation for sales workflows.', departmentId: 'dept-sales', run: stripeSalesRun },
   {
@@ -287,11 +287,11 @@ export const realAgents: RuntimeAgent[] = [
     run: processorConfirmationRun,
   },
   {
-    id: 'pava-financing',
-    name: 'PAVA Financing',
-    description: 'PAVA financing options for offers and payment plans.',
+    id: 'flexpay-financing',
+    name: 'FlexPay Financing',
+    description: 'FlexPay financing options for offers and payment plans.',
     departmentId: 'dept-sales',
-    run: envIntegrationRun('PAVA', 'PAVA_API_KEY', 'financing options for sales offers'),
+    run: envIntegrationRun('FlexPay', 'FlexPay_API_KEY', 'financing options for sales offers'),
   },
   {
     id: 'sales-calls-data',
@@ -437,8 +437,8 @@ export const realAgents: RuntimeAgent[] = [
   },
   {
     id: 'crm-pulse',
-    name: 'Attio CRM',
-    description: 'Queries the Attio deals pipeline (Vantage + Launchpad Cohort). Read-scoped.',
+    name: 'Ledger CRM',
+    description: 'Queries the Ledger deals pipeline (Vantage + Launchpad Cohort). Read-scoped.',
     departmentId: 'dept-sales',
     async run() {
       const status = await attioStatus();
@@ -450,7 +450,7 @@ export const realAgents: RuntimeAgent[] = [
   {
     id: 'client-roster',
     name: 'Client Roster',
-    description: 'The live client list: funnel journeys reconciled with Attio, counted by venture and status.',
+    description: 'The live client list: funnel journeys reconciled with Ledger, counted by venture and status.',
     departmentId: 'dept-clients',
     async run() {
       const db = getDb();
@@ -464,11 +464,11 @@ export const realAgents: RuntimeAgent[] = [
       return {
         ok: true,
         summary: servingAttio
-          ? `Serving Attio live: ${live.clients.length} deals on the roster · funnel backup holds ${converted.length} clients`
-          : `Serving seeded funnel: ${converted.length} clients (${ventures}) · ${journeys.length - converted.length} in pipeline · Attio ${live.state}`,
+          ? `Serving Ledger live: ${live.clients.length} deals on the roster · funnel backup holds ${converted.length} clients`
+          : `Serving seeded funnel: ${converted.length} clients (${ventures}) · ${journeys.length - converted.length} in pipeline · Ledger ${live.state}`,
         data: {
-          source: servingAttio ? 'attio' : 'funnel',
-          attio: { state: live.state, deals: live.clients.length },
+          source: servingAttio ? 'ledger' : 'funnel',
+          ledger: { state: live.state, deals: live.clients.length },
           clients: converted.map((j) => ({ id: j.id, name: j.name, venture: j.venture, amountUsd: j.amountUsd })),
         },
       };
@@ -477,38 +477,38 @@ export const realAgents: RuntimeAgent[] = [
   {
     id: 'client-onboarding',
     name: 'Onboarding Agent',
-    description: 'Readiness check for the onboarding SOP: the Attio trigger plus the Slack and Notion workspaces it provisions.',
+    description: 'Readiness check for the onboarding SOP: the Ledger trigger plus the Slack and Notion workspaces it provisions.',
     departmentId: 'dept-clients',
     async run() {
       const { slackStatus } = await import('@/lib/connectors/slack');
       const { notionStatus } = await import('@/lib/connectors/notion');
-      const [attio, slack, notion] = await Promise.all([attioStatus(), slackStatus(), notionStatus()]);
-      const live = [attio, slack, notion].filter((s) => s.state === 'connected').length;
+      const [ledger, slack, notion] = await Promise.all([attioStatus(), slackStatus(), notionStatus()]);
+      const live = [ledger, slack, notion].filter((s) => s.state === 'connected').length;
       return {
         ok: live > 0,
-        summary: `Onboarding rails: Attio ${attio.state} · Slack ${slack.state} · Notion ${notion.state}${
+        summary: `Onboarding rails: Ledger ${ledger.state} · Slack ${slack.state} · Notion ${notion.state}${
           live < 3 ? ' — connect the missing rail to run onboarding end to end' : ''
         }`,
-        data: { attio: attio.state, slack: slack.state, notion: notion.state },
+        data: { ledger: ledger.state, slack: slack.state, notion: notion.state },
       };
     },
   },
   {
     id: 'client-success',
     name: 'Client Success',
-    description: 'Servicing rails: Fathom call notes for deliverable tracking plus Slack for the check-in cadence.',
+    description: 'Servicing rails: Recall call notes for deliverable tracking plus Slack for the check-in cadence.',
     departmentId: 'dept-clients',
     async run() {
       const { slackStatus } = await import('@/lib/connectors/slack');
       const slack = await slackStatus();
-      const fathom = process.env.FATHOM_API_KEY ? 'configured' : 'not_configured';
-      const live = (slack.state === 'connected' ? 1 : 0) + (fathom === 'configured' ? 1 : 0);
+      const recall = process.env.FATHOM_API_KEY ? 'configured' : 'not_configured';
+      const live = (slack.state === 'connected' ? 1 : 0) + (recall === 'configured' ? 1 : 0);
       return {
         ok: live > 0,
-        summary: `Servicing rails: Fathom ${fathom} · Slack ${slack.state}${
+        summary: `Servicing rails: Recall ${recall} · Slack ${slack.state}${
           live === 0 ? ' — set FATHOM_API_KEY and a Slack bot token to service clients' : ''
         }`,
-        data: { fathom, slack: slack.state },
+        data: { recall, slack: slack.state },
       };
     },
   },
@@ -517,14 +517,14 @@ export const realAgents: RuntimeAgent[] = [
   {
     id: 'stack-monitor',
     name: 'Stack Monitor',
-    description: 'Live check of the local creative/infra stack: Remotion, Ollama, command-center, OpenClaw, tmux, whisper, ffmpeg, higgsfield, gh.',
+    description: 'Live check of the local creative/infra stack: Reelkit, Ollama, command-center, Clawline, tmux, whisper, ffmpeg, renderly, gh.',
     departmentId: 'dept-tech',
     async run() {
-      const [stack, wispr] = await Promise.all([localStackStatus(), wisprStatus()]);
+      const [stack, dictate] = await Promise.all([localStackStatus(), wisprStatus()]);
       return {
         ok: stack.state === 'connected',
-        summary: `${stack.detail} · Wispr: ${wispr.state === 'connected' ? wispr.detail : wispr.state}`,
-        data: { stack: stack.meta, wispr: wispr.meta },
+        summary: `${stack.detail} · Dictate: ${dictate.state === 'connected' ? dictate.detail : dictate.state}`,
+        data: { stack: stack.meta, dictate: dictate.meta },
       };
     },
   },

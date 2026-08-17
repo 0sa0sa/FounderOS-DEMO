@@ -59,21 +59,21 @@ const ENABLING_DEPTS = new Set(['team:dept-tech', 'team:dept-finance', 'team:dep
 
 /** Venture team rosters — seeded agent ids (graph nodes are `emp:<id>`). */
 const VENTURE_TEAMS: Record<string, string[]> = {
-  'fn-vantage': ['vantage-sales', 'vantage-fanbasis', 'fanbasis-sales'],
+  'fn-vantage': ['vantage-sales', 'vantage-paykit', 'paykit-sales'],
   'fn-launchpad-cohort': ['launchpad-cohort-sales'],
 };
 
 /** What each action actually runs on — seeded agent ids, honest best-fit. */
 const ACTION_AGENTS: Record<string, string[]> = {
-  'act-ad-creation': ['arcads-creative', 'higgsfield-creative', 'remotion-editor'],
-  'act-lead-generation': ['sales-agent', 'launchpad-cohort-sales', 'manychat-mcp', 'vantage-sales'],
-  'act-content-repurposing': ['remotion-editor', 'zernio-publisher'],
+  'act-ad-creation': ['adsmith-creative', 'renderly-creative', 'reelkit-editor'],
+  'act-lead-generation': ['sales-agent', 'launchpad-cohort-sales', 'dmflow-mcp', 'vantage-sales'],
+  'act-content-repurposing': ['reelkit-editor', 'postly-publisher'],
   'act-content-ideation': ['social-agent', 'data-agent'],
-  'act-content-scripts': ['social-agent', 'arcads-creative'],
+  'act-content-scripts': ['social-agent', 'adsmith-creative'],
   'act-social-sentiment': ['social-agent', 'data-agent'],
-  'act-social-scheduler': ['zernio-publisher', 'social-agent', 'manychat-mcp'],
-  'act-ai-visuals': ['higgsfield-creative', 'arcads-creative'],
-  'act-competitor-intel': ['data-agent', 'arcads-creative'],
+  'act-social-scheduler': ['postly-publisher', 'social-agent', 'dmflow-mcp'],
+  'act-ai-visuals': ['renderly-creative', 'adsmith-creative'],
+  'act-competitor-intel': ['data-agent', 'adsmith-creative'],
   'act-icp-simulation': ['data-agent', 'sales-calls-data', 'crm-pulse'],
   'act-channel-budget': ['data-agent', 'payments-pulse'],
 };

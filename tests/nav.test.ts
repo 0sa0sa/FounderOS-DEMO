@@ -14,8 +14,10 @@ describe('shared nav config', () => {
     expect(NAV_AGENTS.map((n) => n.href)).toEqual(['/agents', '/tasks', '/skills', '/org']);
   });
 
-  test('Intelligence group holds G-Brain', () => {
-    expect(NAV_INTELLIGENCE.map((n) => n.href)).toEqual(['/brain']);
+  test('Intelligence group holds G-Brain and its Doctor', () => {
+    // the graph tab stays a single uninterrupted canvas; the health readouts
+    // moved to /doctor rather than being dropped
+    expect(NAV_INTELLIGENCE.map((n) => n.href)).toEqual(['/brain', '/doctor']);
   });
 
   test('Finances lives in Operate; Agents, Org Chart, and G-Brain moved to their own groups', () => {

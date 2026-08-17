@@ -683,14 +683,14 @@ export const PERSONAS: Persona[] = [
       }
     ],
     "connectors": [
-      "Attio (CRM)",
+      "Ledger (CRM)",
       "Gmail",
       "Calendly",
       "Notion (client workrooms)",
       "Stripe (retainer billing)",
       "QuickBooks",
       "LinkedIn",
-      "Fathom (call notes)"
+      "Recall (call notes)"
     ],
     "metrics": [
       "Retainer MRR",
@@ -700,7 +700,7 @@ export const PERSONAS: Persona[] = [
       "Effective hourly rate"
     ],
     "brainUse": "Every client's frameworks, decisions, board context, and prior deliverables live in one G-Brain so any agent drafts in that client's voice and never re-asks what was already decided.",
-    "signaturePlay": "After each client call, the Fathom transcript hits G-Brain, Deliverable Forge drafts the next memo/model in that client's house style, Status Reporter posts the workroom update, and Cadence Keeper books the follow-up — the engagement advances before the operator's next call ends."
+    "signaturePlay": "After each client call, the Recall transcript hits G-Brain, Deliverable Forge drafts the next memo/model in that client's house style, Status Reporter posts the workroom update, and Cadence Keeper books the follow-up — the engagement advances before the operator's next call ends."
   },
   {
     "id": "persona-community-operator",
