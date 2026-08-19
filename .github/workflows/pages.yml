@@ -1,0 +1,66 @@
+# Deploys a trimmed, static build of the /brain "graph library showdown" to
+# GitHub Pages. The full app needs a real server (sqlite, 30+ API routes,
+# IMAP/Stripe connectors, the access-gate middleware) — none of that runs on
+# static hosting, so this job deletes everything except the /brain page
+# before building. See next.config.mjs (GITHUB_PAGES=true) for the export
+# config this pairs with.
+name: Deploy graph showcase to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Trim the app down to the /brain graph showcase
+        run: |
+          set -eu
+          rm -f middleware.ts
+          rm -rf app/api
+          find app -mindepth 1 -maxdepth 1 -type d ! -name brain -exec rm -rf {} +
+          rm -f app/page.tsx
+          mv app/brain/page.tsx app/page.tsx
+          rm -rf app/brain
+          sed -i "/export const dynamic = 'force-dynamic';/d" app/page.tsx
+
+      - name: Build static export
+        env:
+          GITHUB_PAGES: 'true'
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
