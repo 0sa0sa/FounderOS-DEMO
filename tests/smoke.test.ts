@@ -31,6 +31,7 @@ const PAGES: PageEntry[] = [
   { file: 'content/lead-magnets/page.tsx', load: () => import('@/app/content/lead-magnets/page') },
   { file: 'agents/page.tsx', load: () => import('@/app/agents/page') },
   { file: 'tasks/page.tsx', load: () => import('@/app/tasks/page') },
+  { file: 'tasks/radial/page.tsx', load: () => import('@/app/tasks/radial/page') },
   { file: 'skills/page.tsx', load: () => import('@/app/skills/page') },
   { file: 'org/page.tsx', load: () => import('@/app/org/page'), props: { searchParams: {} } },
   { file: 'brain/page.tsx', load: () => import('@/app/brain/page') },
