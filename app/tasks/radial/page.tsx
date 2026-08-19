@@ -7,14 +7,16 @@ export const dynamic = 'force-dynamic';
 /**
  * Reference mock: the G-Brain Radial grammar applied to project/task ops.
  * Interaction model only (local state) — the real wiring target is the
- * agent_tasks repo behind /tasks.
+ * agent_tasks repo behind /tasks. Fills the viewport like /brain: the wheel
+ * owns everything under the title.
  */
 export default function RadialTasksPage() {
   return (
-    <div>
+    <div className="flex h-[calc(100dvh-9.25rem)] min-h-[520px] flex-col">
       <PageHeader
         eyebrow="reference mock · radial ops"
         title="Task Wheel"
+        caret
         right={
           <Link
             href="/tasks"
@@ -24,7 +26,9 @@ export default function RadialTasksPage() {
           </Link>
         }
       />
-      <ProjectRadial />
+      <div className="-mt-3 min-h-0 flex-1">
+        <ProjectRadial />
+      </div>
     </div>
   );
 }
