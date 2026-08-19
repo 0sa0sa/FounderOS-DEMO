@@ -5,6 +5,8 @@ import { Sidebar } from '@/components/Sidebar';
 import { Topbar } from '@/components/Topbar';
 import { CommandPalette } from '@/components/CommandPalette';
 import { ConductorPanel } from '@/components/ConductorPanel';
+import { CohortBanner } from '@/components/CohortBanner';
+import { CohortModal } from '@/components/CohortModal';
 import { getDb } from '@/lib/data';
 import type { Command } from '@/lib/palette';
 import { THEME_INIT_SCRIPT } from '@/lib/theme';
@@ -17,7 +19,7 @@ const fontMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'FOUNDER OS',
-  description: 'Personal operating system and AI agent command center',
+  description: 'Personal operating system and AI agent command center for a single person company',
 };
 
 const NAV_COMMANDS: Command[] = [
@@ -76,12 +78,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 full-bleed on 32"/ultrawide. See tailwind screens wide/ultra. */}
             <div className="mx-auto max-w-[1280px] wide:max-w-[1760px] ultra:max-w-none">
               {children}
+              {/* Cohort invite — last thing on every view, by construction */}
+              <CohortBanner />
             </div>
           </main>
         </div>
         <CommandPalette commands={buildCommands()} />
         {/* Notion-style agent dock — the Conductor, aware of the current screen */}
         <ConductorPanel />
+        {/* First-run welcome on the home screen — once per browser */}
+        <CohortModal />
       </body>
     </html>
   );
