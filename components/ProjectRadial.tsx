@@ -1,16 +1,15 @@
 'use client';
 
 /**
- * Project/task ops in the G-Brain Radial grammar — same machinery as the
- * /brain wheel, not an imitation: live d3-force physics over resting targets,
- * the slowly-rotating orbital backdrop, the drifting grid, edgeArc'd spokes
- * with synapse pulses, hover lighting a node's whole chain, drag with a soft
- * physics release. Operator hub at the core, projects on ring 1 (progress arc
- * around each), their tasks fanned inside the sector on ring 2, colored by
- * status. Click a project: the wheel reflows — its sector spreads wide, the
- * rest tuck away. Click a task (wheel or panel) to advance its status; add
- * tasks from the panel and watch them join the physics. Local state only:
- * this is the reference mock for wiring the agent_tasks repo later.
+ * Project/task ops in the G-Brain Radial grammar — the same machinery as the
+ * /brain wheel, end to end: live d3-force physics over resting targets, a
+ * cinematic viewBox camera (auto-frames the focused sector, tracks a selected
+ * task as the physics drifts it, scroll-wheel zooms about the cursor, dragging
+ * the canvas pans), the rotating orbital backdrop, the drifting grid,
+ * edgeArc'd spokes with synapse pulses, hover lighting a node's whole chain,
+ * drag with a soft physics release, the in-canvas detail card on the left,
+ * the big white stage title, and ‹ › pillar-stepping (buttons + arrow keys).
+ * Local state only: the reference mock for wiring the agent_tasks repo later.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -22,10 +21,14 @@ import {
   forceY,
   type Simulation,
 } from 'd3-force';
-import { ClipboardList, FolderKanban, Maximize2, Minimize2, Sparkles } from 'lucide-react';
+import {
+  ArrowLeft, ChevronLeft, ChevronRight, CircleDot, ClipboardList, FolderKanban,
+  ListChecks, Maximize2, Minimize2, Sparkles, Trash2, X,
+} from 'lucide-react';
 import { Label } from '@/components/terminal';
 import { edgeArc } from '@/lib/tree-layout';
 import { rafThrottle } from '@/lib/raf-throttle';
+import { lerpRect, type Rect } from '@/lib/memory-core';
 import {
   cycleStatus,
   demoProjects,
@@ -36,6 +39,7 @@ import {
   STATUS_COLOR,
   STATUS_LABEL,
   type MockProject,
+  type MockTask,
   type MockTaskStatus,
 } from '@/lib/project-radial';
 
@@ -47,6 +51,13 @@ const R_PROJECT = 158;
 const R_TASK = 252;
 // selection echoes the vault orange — one visual language with /brain
 const SELECT_COLOR = '#e35c35';
+
+// labels keep ONE on-screen size at every camera depth (see /brain): the
+// camera loop publishes viewBox-width / canvas-width as --kg-cam-k and every
+// font counter-scales through it
+const fixedLabel = (px: number): React.CSSProperties => ({
+  fontSize: `calc(${px}px * var(--kg-cam-k, 1))`,
+});
 
 type SimNode = {
   id: string;
@@ -87,6 +98,34 @@ function restLayout(projects: MockProject[], focusId: string | null): Rest {
   return rest;
 }
 
+/** Auto-framing, the /brain way: home is the padded whole wheel, a focused
+    sector gets a medium frame past its gateway, a selected task a tight one. */
+function autoCamera(focusPos: { x: number; y: number } | null, taskPos: { x: number; y: number } | null): Rect {
+  if (taskPos) {
+    const w = W * 0.46;
+    const h = H * 0.46;
+    return { x: taskPos.x - w / 2, y: taskPos.y - h / 2, w, h };
+  }
+  if (focusPos) {
+    // frame the sector: center a bit past the gateway, toward its fan
+    const ux = (focusPos.x - CX) / (Math.hypot(focusPos.x - CX, focusPos.y - CY) || 1);
+    const uy = (focusPos.y - CY) / (Math.hypot(focusPos.x - CX, focusPos.y - CY) || 1);
+    const cx = focusPos.x + ux * 52;
+    const cy = focusPos.y + uy * 52;
+    const w = W * 0.68;
+    const h = H * 0.68;
+    return { x: cx - w / 2, y: cy - h / 2, w, h };
+  }
+  return { x: -W * 0.03, y: -H * 0.03, w: W * 1.06, h: H * 1.06 };
+}
+
+function isTyping(): boolean {
+  const el = typeof document !== 'undefined' ? document.activeElement : null;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || (el as HTMLElement).isContentEditable;
+}
+
 export function ProjectRadial() {
   const [projects, setProjects] = useState<MockProject[]>(demoProjects);
   const [focusId, setFocusId] = useState<string | null>(null);
@@ -103,6 +142,12 @@ export function ProjectRadial() {
   const restRef = useRef<Rest>(new Map());
   const dragRef = useRef<{ id: string; moved: boolean; startX: number; startY: number } | null>(null);
   const suppressClickRef = useRef(false);
+  // Manual camera (mirrors /brain): scroll-wheel zooms about the cursor,
+  // dragging the canvas pans; both write this rect and the glide loop honours
+  // it until the next click hands control back to the auto framing.
+  const userViewRef = useRef<Rect | null>(null);
+  const panRef = useRef<{ px: number; py: number; x: number; y: number; k: number; moved: boolean } | null>(null);
+  const panSuppressRef = useRef(false);
 
   const projectOf = useMemo(() => {
     const m = new Map<string, MockProject>();
@@ -115,7 +160,7 @@ export function ProjectRadial() {
   const taskById = useMemo(() => new Map(projects.flatMap((p) => p.tasks.map((t) => [t.id, t] as const))), [projects]);
 
   // hover lights the whole chain: a project lights its tasks + the hub, a task
-  // lights its project + siblings' gateway line back to the core
+  // its project + siblings — the same pillar-chain rule as /brain
   const lit = useMemo(() => {
     if (!hoverId) return null;
     const set = new Set<string>(['hub', hoverId]);
@@ -136,8 +181,8 @@ export function ProjectRadial() {
 
   // ── the simulation ─────────────────────────────────────────────────────────
   // Node identity is stable across status changes; the sim only rebuilds when
-  // the node SET changes (a task added). Rest targets change with focus and
-  // the sim reheats to glide everything to its new spot.
+  // the node SET changes (task added/removed). Rest targets change with focus
+  // and the sim reheats to glide everything to its new spot.
   const structureKey = useMemo(
     () => projects.map((p) => `${p.id}:${p.tasks.map((t) => t.id).join(',')}`).join('|'),
     [projects],
@@ -208,13 +253,105 @@ export function ProjectRadial() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusId, structureKey]);
 
-  // ── drag: grab any node, physics takes it back on release ─────────────────
-  const simNode = (id: string) => nodesRef.current.find((n) => n.id === id);
+  // ── the camera ─────────────────────────────────────────────────────────────
+  // The viewBox glides toward (then tracks) whatever is focused/selected,
+  // reading LIVE sim positions every frame so it follows the drift — written
+  // straight to the svg attribute so it never fights React's render.
+  const camStateRef = useRef({ focusId: null as string | null, selectedTaskId: null as string | null });
+  camStateRef.current = { focusId, selectedTaskId };
+  useEffect(() => {
+    const reduced =
+      typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    let cur: Rect = { x: -W * 0.03, y: -H * 0.03, w: W * 1.06, h: H * 1.06 };
+    let raf = 0;
+    const step = () => {
+      const c = camStateRef.current;
+      const posOf = (id: string | null) => {
+        if (!id) return null;
+        const n = nodesRef.current.find((m) => m.id === id);
+        return n ? { x: n.x, y: n.y } : null;
+      };
+      const target = userViewRef.current ?? autoCamera(posOf(c.focusId), posOf(c.selectedTaskId));
+      const goingHome = !userViewRef.current && !c.focusId && !c.selectedTaskId;
+      const next = lerpRect(cur, target, reduced ? 1 : goingHome ? 0.06 : 0.1);
+      if (next !== cur) {
+        cur = next;
+        const svg = svgRef.current;
+        if (svg) {
+          svg.setAttribute('viewBox', `${cur.x} ${cur.y} ${cur.w} ${cur.h}`);
+          // zoom factor for the constant-size label counter-scale
+          svg.style.setProperty('--kg-cam-k', String(cur.w / W));
+        }
+      }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // Scroll-wheel zoom about the cursor. Attached manually (non-passive) so
+  // preventDefault can stop the page from scrolling under the graph.
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const vb = svg.viewBox.baseVal;
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      const ctm = svg.getScreenCTM();
+      const p = ctm ? pt.matrixTransform(ctm.inverse()) : { x: CX, y: CY };
+      const f = Math.min(2, Math.max(0.5, Math.exp(e.deltaY * 0.0012)));
+      const w = Math.min(W * 3, Math.max(W * 0.12, vb.width * f));
+      const k = w / vb.width;
+      userViewRef.current = {
+        x: p.x - (p.x - vb.x) * k,
+        y: p.y - (p.y - vb.y) * k,
+        w,
+        h: vb.height * k,
+      };
+    };
+    svg.addEventListener('wheel', onWheel, { passive: false });
+    return () => svg.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // Dragging the canvas background pans the manual camera; node drags stop
+  // propagation before these fire, so the two never fight.
+  const onCanvasPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg || e.button !== 0) return;
+    const vb = svg.viewBox.baseVal;
+    const ctm = svg.getScreenCTM();
+    panRef.current = { px: e.clientX, py: e.clientY, x: vb.x, y: vb.y, k: ctm ? 1 / ctm.a : 1, moved: false };
+    try {
+      (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+    } catch {
+      /* capture is best-effort */
+    }
+  };
+  const onCanvasPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const p = panRef.current;
+    const svg = svgRef.current;
+    if (!p || !svg) return;
+    const dx = e.clientX - p.px;
+    const dy = e.clientY - p.py;
+    if (!p.moved && Math.hypot(dx, dy) < 3) return;
+    p.moved = true;
+    const vb = svg.viewBox.baseVal;
+    userViewRef.current = { x: p.x - dx * p.k, y: p.y - dy * p.k, w: vb.width, h: vb.height };
+  };
+  const onCanvasPointerUp = () => {
+    if (panRef.current?.moved) panSuppressRef.current = true;
+    panRef.current = null;
+  };
+
+  // ── node dragging ──────────────────────────────────────────────────────────
+  const simNode = (id: string) => nodesRef.current.find((n) => n.id === id) ?? null;
   const toSvgPoint = (clientX: number, clientY: number) => {
     const svg = svgRef.current;
-    if (!svg) return null;
-    const ctm = svg.getScreenCTM();
-    if (!ctm) return null;
+    const ctm = svg?.getScreenCTM();
+    if (!svg || !ctm) return null;
     const pt = new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse());
     return { x: pt.x, y: pt.y };
   };
@@ -264,13 +401,18 @@ export function ProjectRadial() {
   };
 
   // ── ops ────────────────────────────────────────────────────────────────────
-  const advance = (taskId: string) => {
+  const setStatus = (taskId: string, status: MockTaskStatus) => {
     setProjects((prev) =>
-      prev.map((p) => ({
-        ...p,
-        tasks: p.tasks.map((t) => (t.id === taskId ? { ...t, status: cycleStatus(t.status) } : t)),
-      })),
+      prev.map((p) => ({ ...p, tasks: p.tasks.map((t) => (t.id === taskId ? { ...t, status } : t)) })),
     );
+  };
+  const advance = (taskId: string) => {
+    const t = taskById.get(taskId);
+    if (t) setStatus(taskId, cycleStatus(t.status));
+  };
+  const removeTask = (taskId: string) => {
+    setSelectedTaskId((cur) => (cur === taskId ? null : cur));
+    setProjects((prev) => prev.map((p) => ({ ...p, tasks: p.tasks.filter((t) => t.id !== taskId) })));
   };
   const addTask = () => {
     const title = draft.trim();
@@ -285,20 +427,56 @@ export function ProjectRadial() {
     );
     setDraft('');
   };
+  const clearAll = () => {
+    setFocusId(null);
+    setSelectedTaskId(null);
+    userViewRef.current = null;
+  };
+  const focusProject = (id: string | null) => {
+    setFocusId(id);
+    setSelectedTaskId(null);
+    userViewRef.current = null;
+  };
+  const selectTask = (id: string) => {
+    const proj = projectOf.get(id);
+    if (proj) setFocusId(proj.id);
+    setSelectedTaskId(id);
+    userViewRef.current = null;
+  };
+  const stepProject = (dir: -1 | 1) => {
+    if (projects.length === 0) return;
+    const i = focusId ? projects.findIndex((p) => p.id === focusId) : -1;
+    const next = projects[(i + dir + projects.length) % projects.length];
+    focusProject(next.id);
+  };
   const onNodeClick = (n: SimNode) => {
-    if (n.kind === 'hub') {
-      setFocusId(null);
-      setSelectedTaskId(null);
-    } else if (n.kind === 'project') {
-      setFocusId((cur) => (cur === n.id ? null : n.id));
-      setSelectedTaskId(null);
-    } else {
-      setSelectedTaskId(n.id);
-      advance(n.id);
-    }
+    if (n.kind === 'hub') clearAll();
+    else if (n.kind === 'project') {
+      if (focusId === n.id) clearAll();
+      else focusProject(n.id);
+    } else selectTask(n.id);
   };
 
+  // arrow keys turn the wheel while focused; Escape walks back up (task → pillar → home)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (isTyping()) return;
+      if (e.key === 'Escape') {
+        if (camStateRef.current.selectedTaskId) setSelectedTaskId(null);
+        else clearAll();
+      } else if (camStateRef.current.focusId && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        stepProject(e.key === 'ArrowLeft' ? -1 : 1);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects, focusId]);
+
   const focused = focusId ? projects.find((p) => p.id === focusId) ?? null : null;
+  const selectedTask = selectedTaskId ? taskById.get(selectedTaskId) ?? null : null;
+  const selectedProject = selectedTaskId ? projectOf.get(selectedTaskId) ?? null : null;
   const posById = new Map(nodesRef.current.map((n) => [n.id, n]));
   const statusCounts = useMemo(() => {
     const c: Record<MockTaskStatus, number> = { open: 0, doing: 0, done: 0 };
@@ -333,12 +511,170 @@ export function ProjectRadial() {
     return lit?.has(n.id) ?? false;
   };
 
+  // ── the in-canvas detail card, /brain's card language ──────────────────────
+  const detailCard = selectedTask && selectedProject && (
+    <div className="absolute left-3 top-[46px] z-10 flex max-h-[calc(100%-58px)] w-[300px] flex-col overflow-hidden rounded-lg-t border border-os-border-strong bg-os-bg/95 backdrop-blur">
+      {/* trail bar: node → pillar → home */}
+      <div className="flex shrink-0 items-center border-b border-os-border pr-1">
+        <button
+          onClick={() => setSelectedTaskId(null)}
+          aria-label={`Back to ${selectedProject.name}`}
+          className="flex min-w-0 flex-1 items-center gap-1.5 px-3 py-2 text-left font-mono text-[10px] uppercase tracking-[0.14em] text-os-dim transition-colors hover:text-os-text"
+        >
+          <ArrowLeft className="h-3 w-3 shrink-0" />
+          <span className="truncate">
+            Back · <span style={{ color: selectedProject.color }}>{selectedProject.name}</span>
+          </span>
+        </button>
+        <button
+          onClick={() => setSelectedTaskId(null)}
+          aria-label="Close the task card"
+          title="Close"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm-t text-os-dim transition-colors hover:text-os-err"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2.5">
+        <div className="mb-0.5 text-[12.5px] font-bold leading-snug">{selectedTask.title}</div>
+        <div className="mb-2 truncate font-mono text-[9.5px] text-os-dim">
+          {selectedProject.name} · Task Wheel
+        </div>
+        <div className="mb-3 flex items-center gap-2">
+          <span
+            className="inline-flex items-center gap-1 font-mono text-[9px] font-bold uppercase tracking-[0.18em]"
+            style={{ color: STATUS_COLOR[selectedTask.status] }}
+          >
+            <CircleDot className="h-2.5 w-2.5" /> {STATUS_LABEL[selectedTask.status]}
+          </span>
+        </div>
+
+        <div className="mb-1.5 flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.16em] text-os-dim">
+          <ListChecks className="h-3 w-3" /> the ladder
+        </div>
+        <div className="mb-3.5 flex flex-col gap-1">
+          {(Object.keys(STATUS_LABEL) as MockTaskStatus[]).map((s) => {
+            const active = selectedTask.status === s;
+            return (
+              <button
+                key={s}
+                onClick={() => setStatus(selectedTask.id, s)}
+                className={`flex items-center gap-2 rounded-sm-t border px-2 py-1.5 text-left transition-colors ${
+                  active ? 'border-os-border-strong bg-os-surface' : 'border-os-border hover:border-os-border-strong'
+                }`}
+              >
+                <span className="inline-block h-2 w-2 shrink-0" style={{ background: STATUS_COLOR[s] }} />
+                <span className={`flex-1 text-[11px] ${active ? 'font-semibold text-os-text' : 'text-os-muted'}`}>
+                  {STATUS_LABEL[s]}
+                </span>
+                {active && <span className="font-mono text-[8.5px] uppercase tracking-[0.12em] text-os-dim">now</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mb-1.5 flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.16em] text-os-dim">
+          <FolderKanban className="h-3 w-3" /> belongs to
+        </div>
+        <button
+          onClick={() => {
+            setSelectedTaskId(null);
+            focusProject(selectedProject.id);
+          }}
+          className="mb-3.5 flex w-full items-center gap-2 rounded-sm-t border border-os-border px-2 py-1.5 text-left transition-colors hover:border-os-border-strong"
+        >
+          <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border" style={{ borderColor: selectedProject.color, color: selectedProject.color }}>
+            <FolderKanban className="h-3 w-3" strokeWidth={2} />
+          </span>
+          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold">{selectedProject.name}</span>
+          <span className="shrink-0 font-mono text-[9.5px] text-os-dim">
+            {selectedProject.tasks.filter((t) => t.status === 'done').length}/{selectedProject.tasks.length}
+          </span>
+        </button>
+
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => advance(selectedTask.id)}
+            className="flex-1 rounded-sm-t border border-os-border px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-os-muted transition-colors hover:border-os-accent hover:text-os-accent"
+          >
+            advance →
+          </button>
+          <button
+            onClick={() => removeTask(selectedTask.id)}
+            aria-label="Remove this task"
+            title="Remove this task"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm-t border border-os-border text-os-dim transition-colors hover:border-os-err hover:text-os-err"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   const canvas = (
     <div className={`relative min-w-0 flex-1 overflow-hidden rounded-lg-t border border-os-border bg-os-surface ${fullscreen ? 'h-full' : ''}`}>
       <div className="kg-grid pointer-events-none absolute inset-0" aria-hidden />
-      <div className="pointer-events-none absolute left-2 top-2 z-10 rounded-sm-t border border-os-border-strong bg-os-surface/90 px-2 py-1 font-mono text-[9.5px] uppercase tracking-[0.14em] text-os-dim">
-        Reference mock · local state only
-      </div>
+
+      {/* stage title — big, bold, white, pinned top-center while focused */}
+      {focused && (
+        <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2">
+          <span
+            className="whitespace-nowrap text-[22px] font-bold uppercase leading-none tracking-[0.08em]"
+            style={{ color: '#ffffff', textShadow: '0 1px 8px rgba(0,0,0,0.75)' }}
+          >
+            {focused.name}
+          </span>
+        </div>
+      )}
+
+      {/* top-left navigation: ← Back + the project switcher while focused */}
+      {focused ? (
+        <div className="absolute left-3 top-3 z-10 flex items-center gap-2">
+          <button
+            onClick={clearAll}
+            aria-label="Back to the home view"
+            title="Back to the home view"
+            className="flex items-center gap-1.5 rounded-sm-t border border-os-border-strong bg-os-bg/85 px-2 py-1.5 font-mono text-[10.5px] text-os-muted backdrop-blur transition-colors hover:text-os-accent"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Back
+          </button>
+          <div className="flex items-center gap-0.5 rounded-sm-t border border-os-border-strong bg-os-bg/85 px-1 py-1 backdrop-blur">
+            <button
+              onClick={() => stepProject(-1)}
+              aria-label="Previous project"
+              title="Previous project (←)"
+              className="flex h-6 w-6 items-center justify-center rounded-sm-t text-os-dim transition-colors hover:text-os-text"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => stepProject(1)}
+              aria-label="Next project"
+              title="Next project (→)"
+              className="flex h-6 w-6 items-center justify-center rounded-sm-t text-os-dim transition-colors hover:text-os-text"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+            <span className="max-w-[120px] truncate px-1.5 font-mono text-[11px] font-semibold" style={{ color: focused.color }}>
+              {focused.name}
+            </span>
+            <button
+              onClick={clearAll}
+              aria-label="Close focus"
+              title="Back to all"
+              className="flex h-6 w-6 items-center justify-center rounded-sm-t border-l border-os-border text-os-dim transition-colors hover:text-os-err"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="pointer-events-none absolute left-2 top-2 z-10 rounded-sm-t border border-os-border-strong bg-os-surface/90 px-2 py-1 font-mono text-[9.5px] uppercase tracking-[0.14em] text-os-dim">
+          Reference mock · local state only
+        </div>
+      )}
+
       <button
         onClick={() => setFullscreen((v) => !v)}
         title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
@@ -350,13 +686,20 @@ export function ProjectRadial() {
 
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${W} ${H}`}
+        viewBox={`${-W * 0.03} ${-H * 0.03} ${W * 1.06} ${H * 1.06}`}
         className="h-full w-full"
         role="img"
         aria-label="Radial project and task wheel"
+        onPointerDown={onCanvasPointerDown}
+        onPointerMove={onCanvasPointerMove}
+        onPointerUp={onCanvasPointerUp}
         onClick={() => {
-          setFocusId(null);
-          setSelectedTaskId(null);
+          // a drag that actually panned must not read as a background click
+          if (panSuppressRef.current) {
+            panSuppressRef.current = false;
+            return;
+          }
+          clearAll();
         }}
       >
         {orbitalRings}
@@ -405,9 +748,9 @@ export function ProjectRadial() {
           const arcC = 2 * Math.PI * arcR;
           const label =
             n.kind === 'hub'
-              ? 'Missions'
+              ? 'MISSIONS'
               : n.kind === 'project'
-                ? proj?.name ?? ''
+                ? (proj?.name ?? '').toUpperCase()
                 : (task?.title.length ?? 0) > 26
                   ? `${task!.title.slice(0, 24).trimEnd()}…`
                   : task?.title ?? '';
@@ -435,12 +778,12 @@ export function ProjectRadial() {
                 {n.kind === 'project'
                   ? `${proj?.name} — ${Math.round(progress * 100)}% done · click to focus`
                   : n.kind === 'task'
-                    ? `${task?.title} — ${STATUS_LABEL[task?.status ?? 'open']} · click to advance`
+                    ? `${task?.title} — ${STATUS_LABEL[task?.status ?? 'open']} · click to open`
                     : 'Missions — click to release focus'}
               </title>
               {selected && <circle r={r + 3.5} fill="none" stroke={SELECT_COLOR} strokeWidth={1} opacity={0.4} />}
-              {/* project gateways wear their done-fraction as an arc, the same
-                  gauge language as the G-Brain health ring */}
+              {/* project gateways wear their done-fraction as a gauge arc, the
+                  same language as the G-Brain health ring */}
               {n.kind === 'project' && (
                 <>
                   <circle r={arcR} fill="none" stroke="var(--border-strong)" strokeWidth={1.6} opacity={0.8} />
@@ -475,16 +818,43 @@ export function ProjectRadial() {
                   fontFamily="var(--font-mono)"
                   fontWeight={n.kind === 'task' ? 400 : 600}
                   fill={n.kind === 'project' ? color : 'var(--text-2)'}
-                  fontSize={n.kind === 'hub' ? 10 : n.kind === 'project' ? 10 : 8.5}
-                  style={{ pointerEvents: 'none' }}
+                  style={{ pointerEvents: 'none', ...fixedLabel(n.kind === 'task' ? 8.5 : 10) }}
                 >
-                  {n.kind === 'hub' ? 'MISSIONS' : n.kind === 'project' ? label.toUpperCase() : label}
+                  {label}
                 </text>
               )}
             </g>
           );
         })}
       </svg>
+
+      {/* inline detail overlay — the task card, on the LEFT like /brain */}
+      {detailCard}
+
+      {/* project nav — pinned bottom-center while focused, always reachable */}
+      {focused && (
+        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full border border-os-border-strong bg-os-bg/90 px-1.5 py-1.5 backdrop-blur">
+          <button
+            onClick={() => stepProject(-1)}
+            aria-label="Turn to the previous project"
+            title="Previous project (←)"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-os-muted transition-colors hover:bg-os-surface hover:text-os-text"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <span className="min-w-[92px] px-1 text-center font-mono text-[11px] font-semibold leading-none" style={{ color: focused.color }}>
+            {focused.name}
+          </span>
+          <button
+            onClick={() => stepProject(1)}
+            aria-label="Turn to the next project"
+            title="Next project (→)"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-os-muted transition-colors hover:bg-os-surface hover:text-os-text"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
+      )}
 
       <style
         dangerouslySetInnerHTML={{
@@ -509,6 +879,37 @@ export function ProjectRadial() {
     </div>
   );
 
+  const taskRow = (t: MockTask) => (
+    <li key={t.id}>
+      <div
+        className={`flex w-full items-center gap-2 border-b border-os-hairline px-1 py-2 transition-colors hover:bg-os-surface2 ${
+          selectedTaskId === t.id ? 'bg-os-surface2' : ''
+        }`}
+        onMouseEnter={() => setHoverId(t.id)}
+        onMouseLeave={() => setHoverId((h) => (h === t.id ? null : h))}
+      >
+        <button
+          onClick={() => advance(t.id)}
+          aria-label={`Advance ${t.title}`}
+          title={`${STATUS_LABEL[t.status]} — click to advance`}
+          className="grid h-4 w-4 shrink-0 place-items-center"
+        >
+          <span className="inline-block h-2 w-2" style={{ background: STATUS_COLOR[t.status] }} />
+        </button>
+        <button
+          onClick={() => selectTask(t.id)}
+          className={`min-w-0 flex-1 text-left text-[12px] text-os-muted transition-colors hover:text-os-text ${
+            t.status === 'done' ? 'line-through opacity-55' : ''
+          }`}
+          title="Open the task card"
+        >
+          {t.title}
+        </button>
+        <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-os-dim">{STATUS_LABEL[t.status]}</span>
+      </div>
+    </li>
+  );
+
   const panel = (
     <aside className="flex shrink-0 flex-col gap-4 overflow-y-auto rounded-lg-t border border-os-border bg-os-surface p-3.5 lg:w-80">
       <div>
@@ -531,10 +932,7 @@ export function ProjectRadial() {
           <div className="mb-1 flex items-baseline justify-between gap-2">
             <Label rule>{focused.name}</Label>
             <button
-              onClick={() => {
-                setFocusId(null);
-                setSelectedTaskId(null);
-              }}
+              onClick={clearAll}
               className="shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-os-dim transition-colors hover:text-os-text"
             >
               all ✕
@@ -551,28 +949,7 @@ export function ProjectRadial() {
             {focused.tasks.filter((t) => t.status === 'done').length}/{focused.tasks.length} done ·{' '}
             {Math.round(projectProgress(focused.tasks) * 100)}%
           </div>
-          <ul className="flex flex-col">
-            {focused.tasks.map((t) => (
-              <li key={t.id}>
-                <button
-                  onClick={() => {
-                    setSelectedTaskId(t.id);
-                    advance(t.id);
-                  }}
-                  onMouseEnter={() => setHoverId(t.id)}
-                  onMouseLeave={() => setHoverId((h) => (h === t.id ? null : h))}
-                  className="flex w-full items-center gap-2.5 border-b border-os-hairline px-1 py-2 text-left text-[12px] text-os-muted transition-colors hover:bg-os-surface2 hover:text-os-text"
-                  title="Click to advance status"
-                >
-                  <span className="inline-block h-2 w-2 shrink-0" style={{ background: STATUS_COLOR[t.status] }} />
-                  <span className={`min-w-0 flex-1 ${t.status === 'done' ? 'line-through opacity-55' : ''}`}>{t.title}</span>
-                  <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-os-dim">
-                    {STATUS_LABEL[t.status]}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <ul className="flex flex-col">{focused.tasks.map(taskRow)}</ul>
           <form
             className="mt-3 flex gap-1.5"
             onSubmit={(e) => {
@@ -608,12 +985,14 @@ export function ProjectRadial() {
               return (
                 <li key={p.id}>
                   <button
-                    onClick={() => setFocusId(p.id)}
+                    onClick={() => focusProject(p.id)}
                     onMouseEnter={() => setHoverId(p.id)}
                     onMouseLeave={() => setHoverId((h) => (h === p.id ? null : h))}
                     className="flex w-full items-center gap-2.5 border-b border-os-hairline px-1 py-2.5 text-left text-[12px] text-os-muted transition-colors hover:bg-os-surface2 hover:text-os-text"
                   >
-                    <span className="inline-block h-2 w-2 shrink-0" style={{ background: p.color }} />
+                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border" style={{ borderColor: p.color, color: p.color }}>
+                      <FolderKanban className="h-3 w-3" strokeWidth={2} />
+                    </span>
                     <span className="min-w-0 flex-1 truncate">{p.name}</span>
                     <span className="shrink-0 font-mono text-[10px] text-os-dim">
                       {done}/{p.tasks.length}
@@ -624,7 +1003,8 @@ export function ProjectRadial() {
             })}
           </ul>
           <div className="mt-3 font-mono text-[10px] leading-relaxed text-os-dim">
-            hover traces a chain · click a project to turn the wheel · click a task to advance it · drag anything
+            hover traces a chain · click a project to turn the wheel · click a task for its card · scroll zooms ·
+            drag the canvas to pan · ←/→ step projects
           </div>
         </div>
       )}
